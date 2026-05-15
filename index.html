@@ -19,16 +19,21 @@
   }
 
   header {
-    height: 70px;
-    background: #121821;
-    border-bottom: 1px solid #1f2937;
+  height: 70px;
+  background: #121821;
+  border-bottom: 1px solid #1f2937;
 
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 
-    padding: 0 24px;
-  }
+  padding: 0 24px;
+
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+}
 
   .logo {
     font-size: 22px;
@@ -64,6 +69,8 @@
     transition: 0.2s ease;
 
     min-height: 500px;
+
+    transition: transform 0.15s ease, border-color 0.15s ease;
   }
 
   .card:hover {
@@ -122,111 +129,102 @@
     font-size: 11px;
   }
 
+  .item a {
+  display: inline-block;
+  transition: 0.15s ease;
+  color: inherit;
+  text-decoration: none;
+}
+
+.item a:hover {
+  text-decoration: underline;
+  color: #60a5fa;
+}
+
+.item {
+  cursor: pointer;
+}
+
 </style>
 </head>
 
 <body>
 
   <header>
-    <div class="logo">Project Scorpion</div>
-    <div class="menu">Dashboard MVP</div>
-  </header>
+  <div class="logo">Project Scorpion</div>
+  <div class="menu">Dashboard MVP <span style="color:#22c55e;">● LIVE</span></div>
+</header>
 
   <div class="grid" id="dashboard"></div>
 
 <script>
 
-const categories = [
-  {
-    id: "sports",
-    title: "Sports"
-  },
-  {
-    id: "gaming",
-    title: "Video Games"
-  },
-  {
-    id: "markets",
-    title: "Markets"
+  const categories = [
+    { id: "sports", title: "Sports" },
+    { id: "gaming", title: "Video Games" },
+    { id: "markets", title: "Markets" }
+  ];
+
+  const mockData = {
+    sports: [
+      "NFL playoff race heats up",
+      "NBA superstar trade rumors",
+      "MLB opening week highlights",
+      "Premier League title battle",
+      "NHL standings shift",
+      "College football rankings updated",
+      "Tennis Grand Slam preview",
+      "F1 qualifying shock result",
+      "UFC main event announced",
+      "Olympics prep begins"
+    ],
+
+    gaming: [
+      "New Call of Duty update drops",
+      "Elden Ring DLC speculation",
+      "Fortnite meta changes",
+      "Steam winter sale trends",
+      "GTA 6 leaks discussion",
+      "Nintendo Switch 2 rumors",
+      "Esports championship results",
+      "Minecraft update announced",
+      "League of Legends patch notes",
+      "Cyberpunk 2077 resurgence"
+    ],
+
+    markets: []
+  };
+
+  function createDashboard() {
+    const dashboard = document.getElementById("dashboard");
+
+    categories.forEach(cat => {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.id = cat.id;
+
+      card.innerHTML = `<h3>${cat.title}</h3>`;
+      dashboard.appendChild(card);
+    });
   }
-];
 
-const mockData = {
-  sports: [
-    "NFL playoff race heats up",
-    "Super lame",
-    "NBA superstar trade rumors",
-    "MLB opening week highlights",
-    "Premier League title battle",
-    "NHL standings shift",
-    "College football rankings updated",
-    "Tennis Grand Slam preview",
-    "F1 qualifying shock result",
-    "UFC main event announced",
-    "Olympics prep begins"
-  ],
-
-  gaming: [
-    "New Call of Duty update drops",
-    "Elden Ring DLC speculation",
-    "Fortnite meta changes",
-    "Steam winter sale trends",
-    "GTA 6 leaks discussion",
-    "Nintendo Switch 2 rumors",
-    "Esports championship results",
-    "Minecraft update announced",
-    "League of Legends patch notes",
-    "Cyberpunk 2077 resurgence"
-  ],
-
-  markets: [
-    "Tech stocks surge on AI optimism",
-    "Nvidia leads semiconductor rally",
-    "Fed signals possible rate pause",
-    "Oil prices spike on supply concerns",
-    "Crypto rebounds after selloff",
-    "Big tech earnings beat expectations",
-    "Banking sector shows volatility",
-    "Retail sales data surprises upward",
-    "Global markets react to inflation data",
-    "EV sector faces mixed investor sentiment"
-  ]
-};
-
-function createDashboard() {
-
-  const dashboard = document.getElementById("dashboard");
-
-  categories.forEach(category => {
-
-    const card = document.createElement("div");
-
-    card.className = "card";
-
-    card.id = category.id;
-
-    card.innerHTML = `
-      <h3>${category.title}</h3>
-    `;
-
-    dashboard.appendChild(card);
-
-  });
-}
-
-function createItem(text, index) {
+  function createItem(text, index, link = null) {
 
   const div = document.createElement("div");
-
   div.className = "item";
 
   const isHot = index < 3;
-
   const timestamp = new Date().toLocaleTimeString();
+
+  const content = link
+    ? `<a href="${link}" target="_blank" style="color:inherit; text-decoration:none;">
+         ${text}
+       </a>`
+    : text;
 
   div.innerHTML = `
     <span class="rank">#${index + 1}</span>
-    ${text}
+    ${content}
     ${isHot ? '<span class="hot">HOT</span>' : ''}
     <div class="timestamp">${timestamp}</div>
   `;
@@ -234,38 +232,95 @@ function createItem(text, index) {
   return div;
 }
 
-function renderCategory(category, elementId) {
+  function renderCategory(category, elementId) {
+    const container = document.getElementById(elementId);
 
-  const container = document.getElementById(elementId);
+    const title = container.querySelector("h3").outerHTML;
+    container.innerHTML = title;
 
-  const title = container.querySelector("h3").outerHTML;
+    const items = mockData[category];
 
-  container.innerHTML = title;
+items.forEach((item, index) => {
 
-  const items = mockData[category];
+  const isObject = typeof item === "object";
 
-  items.forEach((text, index) => {
+  const text = isObject ? item.title : item;
 
-    const item = createItem(text, index);
+  const link = isObject ? item.link : null;
 
-    container.appendChild(item);
+  container.appendChild(createItem(text, index, link));
 
-  });
+});
+  }
+
+async function loadMarketsNews() {
+
+  const container = document.getElementById("markets");
+
+  container.innerHTML = `
+    <h3>Markets</h3>
+    <div class="item">Loading latest news...</div>
+  `;
+
+  const url =
+    "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC&region=US&lang=en-US";
+
+  const proxy =
+    "https://api.allorigins.win/get?url=" + encodeURIComponent(url);
+
+  try {
+
+    const res = await fetch(proxy);
+
+    const data = await res.json();
+
+    const parser = new DOMParser();
+
+    const xml = parser.parseFromString(data.contents, "text/xml");
+
+    const items = Array.from(xml.querySelectorAll("item"));
+
+    if (!items || items.length === 0) {
+      throw new Error("No RSS items found");
+    }
+
+    mockData.markets = items
+  .map(item => {
+    return {
+      title: item.querySelector("title")?.textContent,
+      link: item.querySelector("link")?.textContent
+    };
+  })
+  .filter(i => i.title && i.link)
+  .slice(0, 10);
+
+    renderCategory("markets", "markets");
+
+  } catch (err) {
+
+    console.error("Markets load error:", err);
+
+    container.innerHTML = `
+      <h3>Markets</h3>
+      <div class="item">Failed to load news feed.</div>
+    `;
+  }
 }
 
-async function init() {
+  function init() {
 
-  createDashboard();
+    createDashboard();
 
-  renderCategory("sports", "sports");
+    renderCategory("sports", "sports");
+    renderCategory("gaming", "gaming");
 
-  renderCategory("gaming", "gaming");
+    loadMarketsNews();
+  }
 
-  renderCategory("markets", "markets");
-}
-
-init();
-
+  init();
+setInterval(() => {
+  loadMarketsNews();
+}, 60000);
 
 </script>
 
