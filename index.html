@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Project Scorpion</title>
+
+ <style>
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #0b0f14;
+    color: white;
+  }
+
+  header {
+    height: 70px;
+    background: #121821;
+    border-bottom: 1px solid #1f2937;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 0 24px;
+  }
+
+  .logo {
+    font-size: 22px;
+    font-weight: bold;
+    letter-spacing: 1px;
+  }
+
+  .menu {
+    color: #94a3b8;
+    font-size: 14px;
+  }
+
+  .grid {
+    padding: 24px;
+
+    display: grid;
+
+    grid-template-columns:
+      repeat(auto-fit, minmax(320px, 1fr));
+
+    gap: 20px;
+  }
+
+  .card {
+    background: #121821;
+
+    border: 1px solid #1e293b;
+
+    border-radius: 14px;
+
+    padding: 18px;
+
+    transition: 0.2s ease;
+
+    min-height: 500px;
+  }
+
+  .card:hover {
+    transform: translateY(-2px);
+
+    border-color: #334155;
+  }
+
+  .card h3 {
+    margin-top: 0;
+
+    margin-bottom: 18px;
+
+    font-size: 18px;
+
+    border-bottom: 1px solid #1e293b;
+
+    padding-bottom: 12px;
+  }
+
+  .item {
+    padding: 12px 0;
+
+    border-bottom: 1px solid #1e293b;
+
+    line-height: 1.4;
+  }
+
+  .item:last-child {
+    border-bottom: none;
+  }
+
+  .rank {
+    color: #64748b;
+
+    font-size: 13px;
+
+    margin-right: 8px;
+  }
+
+  .hot {
+    color: #f97316;
+
+    font-size: 11px;
+
+    font-weight: bold;
+
+    margin-left: 8px;
+  }
+
+  .timestamp {
+    margin-top: 6px;
+
+    color: #64748b;
+
+    font-size: 11px;
+  }
+
+</style>
+</head>
+
+<body>
+
+  <header>
+    <div class="logo">Project Scorpion</div>
+    <div class="menu">Dashboard MVP</div>
+  </header>
+
+  <div class="grid" id="dashboard"></div>
+
+<script>
+
+const categories = [
+  {
+    id: "sports",
+    title: "Sports"
+  },
+  {
+    id: "gaming",
+    title: "Video Games"
+  },
+  {
+    id: "markets",
+    title: "Markets"
+  }
+];
+
+const mockData = {
+  sports: [
+    "NFL playoff race heats up",
+    "Super lame",
+    "NBA superstar trade rumors",
+    "MLB opening week highlights",
+    "Premier League title battle",
+    "NHL standings shift",
+    "College football rankings updated",
+    "Tennis Grand Slam preview",
+    "F1 qualifying shock result",
+    "UFC main event announced",
+    "Olympics prep begins"
+  ],
+
+  gaming: [
+    "New Call of Duty update drops",
+    "Elden Ring DLC speculation",
+    "Fortnite meta changes",
+    "Steam winter sale trends",
+    "GTA 6 leaks discussion",
+    "Nintendo Switch 2 rumors",
+    "Esports championship results",
+    "Minecraft update announced",
+    "League of Legends patch notes",
+    "Cyberpunk 2077 resurgence"
+  ],
+
+  markets: [
+    "Tech stocks surge on AI optimism",
+    "Nvidia leads semiconductor rally",
+    "Fed signals possible rate pause",
+    "Oil prices spike on supply concerns",
+    "Crypto rebounds after selloff",
+    "Big tech earnings beat expectations",
+    "Banking sector shows volatility",
+    "Retail sales data surprises upward",
+    "Global markets react to inflation data",
+    "EV sector faces mixed investor sentiment"
+  ]
+};
+
+function createDashboard() {
+
+  const dashboard = document.getElementById("dashboard");
+
+  categories.forEach(category => {
+
+    const card = document.createElement("div");
+
+    card.className = "card";
+
+    card.id = category.id;
+
+    card.innerHTML = `
+      <h3>${category.title}</h3>
+    `;
+
+    dashboard.appendChild(card);
+
+  });
+}
+
+function createItem(text, index) {
+
+  const div = document.createElement("div");
+
+  div.className = "item";
+
+  const isHot = index < 3;
+
+  const timestamp = new Date().toLocaleTimeString();
+
+  div.innerHTML = `
+    <span class="rank">#${index + 1}</span>
+    ${text}
+    ${isHot ? '<span class="hot">HOT</span>' : ''}
+    <div class="timestamp">${timestamp}</div>
+  `;
+
+  return div;
+}
+
+function renderCategory(category, elementId) {
+
+  const container = document.getElementById(elementId);
+
+  const title = container.querySelector("h3").outerHTML;
+
+  container.innerHTML = title;
+
+  const items = mockData[category];
+
+  items.forEach((text, index) => {
+
+    const item = createItem(text, index);
+
+    container.appendChild(item);
+
+  });
+}
+
+async function init() {
+
+  createDashboard();
+
+  renderCategory("sports", "sports");
+
+  renderCategory("gaming", "gaming");
+
+  renderCategory("markets", "markets");
+}
+
+init();
+
+
+</script>
+
+</body>
+</html>
