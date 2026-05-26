@@ -159,6 +159,8 @@
 
 <script>
 
+let globalStories = [];
+
 const categories = [
 
   {
@@ -176,32 +178,29 @@ const categories = [
   {
     id: "markets",
     title: "Markets",
-    rssUrl:
-      "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC&region=US&lang=en-US"
+    rssUrl: "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC&region=US&lang=en-US"
   }
 
 ];
 
 
-  function createDashboard() {
-    const dashboard = document.getElementById("dashboard");
+function createDashboard() {
+  const dashboard = document.getElementById("dashboard");
 
-    categories.forEach(cat => {
-      const card = document.createElement("div");
-      card.className = "card";
-      card.id = cat.id;
+  categories.forEach(cat => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.id = cat.id;
+    card.innerHTML = `<h3>${cat.title}</h3>`;
+    dashboard.appendChild(card);
+  });
+}
 
-      card.innerHTML = `<h3>${cat.title}</h3>`;
-      dashboard.appendChild(card);
-    });
-  }
-
-  function createItem(text, index, link = null) {
+function createItem(text, index, link = null, score = 0, isHot = false) {
 
   const div = document.createElement("div");
   div.className = "item";
 
-  const isHot = index < 3;
   const timestamp = new Date().toLocaleTimeString();
 
   const content = link
@@ -232,69 +231,188 @@ function renderCategory(category, items) {
       createItem(
         item.title,
         index,
-        item.link
+        item.link,
+        item.score,
+        item.isHot
       )
     );
 
   });
 }
 
+function renderAllCategories(allData) {
 
-function init() {
+  const grouped = {};
 
-  createDashboard();
-
-  categories.forEach(cat => {
-    loadRSSFeed(cat);
+  allData.forEach(item => {
+    if (!grouped[item.category]) {
+      grouped[item.category] = [];
+    }
+    grouped[item.category].push(item);
   });
 
+  categories.forEach(cat => {
+    renderCategory(cat, grouped[cat.id] || []);
+  });
+}
+
+function renderGlobalFeed() {
+
+  const dashboard = document.getElementById("dashboard");
+
+  let container = document.getElementById("global");
+
+  if (!container) {
+    container = document.createElement("div");
+    container.className = "card";
+    container.id = "global";
+    container.innerHTML = "<h3>🔥 Top Stories</h3>";
+    dashboard.prepend(container);
+  }
+
+  container.innerHTML = "<h3>🔥 Top Stories</h3>";
+
+  const top = globalStories
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 10);
+
+  top.forEach((item, index) => {
+    container.appendChild(
+      createItem(
+        `[${item.category}] ${item.title}`,
+        index,
+        item.link,
+        item.score,
+        index < 3
+      )
+    );
+  });
+}
+
+function scoreHeadline(title) {
+
+  const keywords = [
+    "breaking", "win", "beats", "shock", "huge",
+    "massive", "update", "release", "deal", "trump",
+    "ai", "nvidia", "war", "record"
+  ];
+
+  let score = 0;
+  const lower = title.toLowerCase();
+
+  keywords.forEach(word => {
+    if (lower.includes(word)) score += 2;
+  });
+
+  if (lower.length > 60) score += 1;
+
+  return score;
 }
 
 async function loadRSSFeed(category) {
-
-  const container = document.getElementById(category.id);
-
-  container.innerHTML = `
-    <h3>${category.title}</h3>
-    <div class="item">Loading latest news...</div>
-  `;
-
+  
   const proxy =
-    "https://api.allorigins.win/get?url=" +
-    encodeURIComponent(category.rssUrl);
+  `/api/rss?url=${encodeURIComponent(category.rssUrl)}`;
 
   try {
 
     const res = await fetch(proxy);
+
+    if (!res.ok) {
+      throw new Error("Proxy failed: " + res.status);
+    }
+
     const data = await res.json();
+
+    if (!data.contents) {
+      throw new Error("Empty RSS response");
+    }
 
     const parser = new DOMParser();
     const xml = parser.parseFromString(data.contents, "text/xml");
 
     const items = Array.from(xml.querySelectorAll("item"));
 
-    const cleaned = items
-      .map(item => ({
-        title: item.querySelector("title")?.textContent,
-        link: item.querySelector("link")?.textContent
-      }))
-      .filter(i => i.title && i.link)
-      .slice(0, 10);
+    let cleaned = items
+      .map(item => {
+        const title = item.querySelector("title")?.textContent || "";
+        const link = item.querySelector("link")?.textContent || "";
 
-    renderCategory(category, cleaned);
+        return {
+          title,
+          link,
+          score: scoreHeadline(title)
+        };
+      })
+      .filter(i => i.title && i.link);
+
+    cleaned.sort((a, b) => b.score - a.score);
+    cleaned = cleaned.slice(0, 10);
+
+    const hotCutoff = Math.max(1, Math.floor(cleaned.length * 0.3));
+
+    cleaned = cleaned.map((item, index) => ({
+      ...item,
+      isHot: index < hotCutoff,
+      category: category.id
+    }));
+
+    return cleaned;
 
   } catch (err) {
 
-    console.error(`${category.title} error:`, err);
+    console.warn(`${category.title} failed, retrying once...`, err);
 
-    container.innerHTML = `
-      <h3>${category.title}</h3>
-      <div class="item">Failed to load feed</div>
-    `;
+    // simple retry once
+    try {
+
+      const res = await fetch(proxy);
+      const data = await res.json();
+
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(data.contents, "text/xml");
+
+      const items = Array.from(xml.querySelectorAll("item"));
+
+      return items.slice(0, 10).map(item => ({
+        title: item.querySelector("title")?.textContent || "",
+        link: item.querySelector("link")?.textContent || "",
+        score: 0,
+        isHot: false,
+        category: category.id
+      }));
+
+    } catch (retryErr) {
+
+      console.error(`${category.title} final failure:`, retryErr);
+
+      return [];
+    }
   }
 }
 
-  init();
+document.addEventListener("DOMContentLoaded", async () => {
+
+  createDashboard();
+
+  try {
+    const results = await Promise.all(
+      categories.map(cat => loadRSSFeed(cat))
+    );
+
+    const allData = results.flat();
+
+    renderAllCategories(allData);
+
+    globalStories = allData;
+
+    renderGlobalFeed();
+
+  } catch (err) {
+    console.error("GLOBAL FAILURE:", err);
+  }
+
+});
 
 </script>
 
