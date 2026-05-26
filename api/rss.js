@@ -14,14 +14,15 @@ export default async function handler(req, res) {
       }
     });
 
-    const text = await response.text();
+    const xmlText = await response.text();
 
-    res.setHeader("Content-Type", "application/xml");
-    res.status(200).send(text);
+    return res.status(200).json({
+      contents: xmlText
+    });
 
   } catch (err) {
 
-    res.status(500).json({
+    return res.status(500).json({
       error: "Failed to fetch RSS",
       details: err.message
     });
