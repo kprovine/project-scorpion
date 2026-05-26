@@ -159,41 +159,29 @@
 
 <script>
 
-  const categories = [
-    { id: "sports", title: "Sports" },
-    { id: "gaming", title: "Video Games" },
-    { id: "markets", title: "Markets" }
-  ];
+const categories = [
 
-  const mockData = {
-    sports: [
-      "NFL playoff race heats up",
-      "NBA superstar trade rumors",
-      "MLB opening week highlights",
-      "Premier League title battle",
-      "NHL standings shift",
-      "College football rankings updated",
-      "Tennis Grand Slam preview",
-      "F1 qualifying shock result",
-      "UFC main event announced",
-      "Olympics prep begins"
-    ],
+  {
+    id: "sports",
+    title: "Sports",
+    rssUrl: "https://feeds.bbci.co.uk/sport/rss.xml"
+  },
 
-    gaming: [
-      "New Call of Duty update drops",
-      "Elden Ring DLC speculation",
-      "Fortnite meta changes",
-      "Steam winter sale trends",
-      "GTA 6 leaks discussion",
-      "Nintendo Switch 2 rumors",
-      "Esports championship results",
-      "Minecraft update announced",
-      "League of Legends patch notes",
-      "Cyberpunk 2077 resurgence"
-    ],
+  {
+    id: "gaming",
+    title: "Gaming",
+    rssUrl: "https://feeds.arstechnica.com/arstechnica/index"
+  },
 
-    markets: []
-  };
+  {
+    id: "markets",
+    title: "Markets",
+    rssUrl:
+      "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC&region=US&lang=en-US"
+  }
+
+];
+
 
   function createDashboard() {
     const dashboard = document.getElementById("dashboard");
@@ -232,95 +220,81 @@
   return div;
 }
 
-  function renderCategory(category, elementId) {
-    const container = document.getElementById(elementId);
+function renderCategory(category, items) {
 
-    const title = container.querySelector("h3").outerHTML;
-    container.innerHTML = title;
+  const container = document.getElementById(category.id);
 
-    const items = mockData[category];
+  container.innerHTML = `<h3>${category.title}</h3>`;
 
-items.forEach((item, index) => {
+  items.forEach((item, index) => {
 
-  const isObject = typeof item === "object";
+    container.appendChild(
+      createItem(
+        item.title,
+        index,
+        item.link
+      )
+    );
 
-  const text = isObject ? item.title : item;
+  });
+}
 
-  const link = isObject ? item.link : null;
 
-  container.appendChild(createItem(text, index, link));
+function init() {
 
-});
-  }
+  createDashboard();
 
-async function loadMarketsNews() {
+  categories.forEach(cat => {
+    loadRSSFeed(cat);
+  });
 
-  const container = document.getElementById("markets");
+}
+
+async function loadRSSFeed(category) {
+
+  const container = document.getElementById(category.id);
 
   container.innerHTML = `
-    <h3>Markets</h3>
+    <h3>${category.title}</h3>
     <div class="item">Loading latest news...</div>
   `;
 
-  const url =
-    "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC&region=US&lang=en-US";
-
   const proxy =
-    "https://api.allorigins.win/get?url=" + encodeURIComponent(url);
+    "https://api.allorigins.win/get?url=" +
+    encodeURIComponent(category.rssUrl);
 
   try {
 
     const res = await fetch(proxy);
-
     const data = await res.json();
 
     const parser = new DOMParser();
-
     const xml = parser.parseFromString(data.contents, "text/xml");
 
     const items = Array.from(xml.querySelectorAll("item"));
 
-    if (!items || items.length === 0) {
-      throw new Error("No RSS items found");
-    }
+    const cleaned = items
+      .map(item => ({
+        title: item.querySelector("title")?.textContent,
+        link: item.querySelector("link")?.textContent
+      }))
+      .filter(i => i.title && i.link)
+      .slice(0, 10);
 
-    mockData.markets = items
-  .map(item => {
-    return {
-      title: item.querySelector("title")?.textContent,
-      link: item.querySelector("link")?.textContent
-    };
-  })
-  .filter(i => i.title && i.link)
-  .slice(0, 10);
-
-    renderCategory("markets", "markets");
+    renderCategory(category, cleaned);
 
   } catch (err) {
 
-    console.error("Markets load error:", err);
+    console.error(`${category.title} error:`, err);
 
     container.innerHTML = `
-      <h3>Markets</h3>
-      <div class="item">Failed to load news feed.</div>
+      <h3>${category.title}</h3>
+      <div class="item">Failed to load feed</div>
     `;
   }
 }
 
-  function init() {
-
-    createDashboard();
-
-    renderCategory("sports", "sports");
-    renderCategory("gaming", "gaming");
-
-    loadMarketsNews();
-  }
-
   init();
-setInterval(() => {
-  loadMarketsNews();
-}, 60000);
 
 </script>
 
