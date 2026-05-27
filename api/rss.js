@@ -1,7 +1,8 @@
-let cache = new Map();
-const TTL = 1000 * 90; // 90 seconds (good middle ground)
+let cache = {};
+let CACHE_TTL = 1000 * 60 * 2; // 2 minutes
 
 export default async function handler(req, res) {
+
   const { url } = req.query;
 
   if (!url) {
@@ -11,20 +12,19 @@ export default async function handler(req, res) {
   const now = Date.now();
 
   // -------------------------
-  // 1. CHECK CACHE
+  // 1. CACHE HIT
   // -------------------------
-  const cached = cache.get(url);
-
-  if (cached && (now - cached.timestamp < TTL)) {
+  if (cache[url] && (now - cache[url].timestamp < CACHE_TTL)) {
     return res.status(200).json({
-      contents: cached.contents,
+      contents: cache[url].data,
       cached: true
     });
   }
 
   try {
+
     // -------------------------
-    // 2. FETCH FRESH DATA
+    // 2. FETCH RSS
     // -------------------------
     const response = await fetch(url, {
       headers: {
@@ -39,40 +39,37 @@ export default async function handler(req, res) {
     const text = await response.text();
 
     // -------------------------
-    // 3. UPDATE CACHE
+    // 3. SAVE CACHE
     // -------------------------
-    cache.set(url, {
-      contents: text,
+    cache[url] = {
+      data: text,
       timestamp: now
-    });
-
-    // optional cleanup (prevents memory bloat)
-    if (cache.size > 50) {
-      const firstKey = cache.keys().next().value;
-      cache.delete(firstKey);
-    }
+    };
 
     // -------------------------
-    // 4. RETURN RESPONSE
+    // 4. RETURN
     // -------------------------
-    res.status(200).json({
+    return res.status(200).json({
       contents: text,
       cached: false
     });
 
   } catch (err) {
-    console.error("RSS proxy error:", err);
 
-    // fallback to stale cache if available
-    if (cached) {
+    console.error("RSS ERROR:", err);
+
+    // -------------------------
+    // 5. STALE FALLBACK (IMPORTANT)
+    // -------------------------
+    if (cache[url]) {
       return res.status(200).json({
-        contents: cached.contents,
+        contents: cache[url].data,
         cached: true,
         stale: true
       });
     }
 
-    res.status(500).json({
+    return res.status(500).json({
       error: "Failed to fetch RSS",
       details: err.message
     });
