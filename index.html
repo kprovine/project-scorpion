@@ -410,6 +410,9 @@ async function loadRSSFeed(category) {
 
     return [];
   }
+
+  console.log(category.id, data.contents.slice(0, 200));
+  
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
