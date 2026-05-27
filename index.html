@@ -250,6 +250,8 @@ let storyMap = new Map();
 
 let isLoading = true;
 
+let renderedTopStories = new Set();
+
 const categories = [
 
   {
@@ -407,6 +409,40 @@ function renderGlobalFeed() {
     container.style.opacity = 1;
 
   }, 80);
+}
+
+function streamGlobalFeed() {
+  const container = document.getElementById("global");
+  if (!container) return;
+
+  const top = globalStories
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 10);
+
+  top.forEach((item, index) => {
+    const key = normalizeTitle(item.title);
+
+    if (renderedTopStories.has(key)) return;
+
+    renderedTopStories.add(key);
+
+    const el = createItem(
+      `[${item.category}] ${item.title}`,
+      index,
+      item.link,
+      item.score,
+      index < 3
+    );
+
+    el.style.opacity = 0;
+    el.style.transform = "translateY(10px)";
+
+    container.appendChild(el);
+
+    setTimeout(() => {
+      el.classList.add("show");
+    }, 20);
+  });
 }
 
 function renderSkeleton(categoryId) {
@@ -592,32 +628,35 @@ console.log("ITEM COUNT:", items.length);
 
 document.addEventListener("DOMContentLoaded", async () => {
 
-  // 1. reset global state 
+  // reset state
   storyMap = new Map();
   globalStories = [];
 
-  // 2. build UI shell
+  // build UI shell
   createDashboard();
-  renderTopStoriesSkeleton();
 
-   // show loading state immediately
-  categories.forEach(cat => {
-    renderSkeleton(cat.id);
-  });
+  // show skeletons
+  renderTopStoriesSkeleton();
+  categories.forEach(cat => renderSkeleton(cat.id));
 
   try {
 
-    // 3. load all feeds (each feed contributes into storyMap)
-     const results = await Promise.all(
+    // fetch data
+    await Promise.all(
       categories.map(cat => loadRSSFeed(cat))
     );
 
-    // 4. NOW build final dataset from deduped global map
+    // build final dataset
     globalStories = Array.from(storyMap.values());
 
-    // 5. render everything from ONE source of truth
+    // IMPORTANT: clear skeletons implicitly by full render
     renderAllCategories(globalStories);
     renderGlobalFeed();
+
+    // start streaming updates
+    setInterval(() => {
+      streamGlobalFeed();
+    }, 60000);
 
   } catch (err) {
     console.error("GLOBAL FAILURE:", err);
