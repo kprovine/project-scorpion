@@ -89,10 +89,12 @@
     border-bottom: 1px solid #1e293b;
     line-height: 1.4;
     cursor: pointer;
+
     opacity: 0;
-    transform: translateY(6px);
-    transition: opacity 0.2s ease,
-                transform 0.2s ease;
+    transform: translateY(8px);
+
+    transition: opacity 0.25s ease,
+                transform 0.25s ease;
   }
 
   .item.show {
@@ -345,17 +347,21 @@ function renderGlobalFeed() {
     .sort((a, b) => b.score - a.score)
     .slice(0, 10);
 
-  top.forEach((item, index) => {
-    container.appendChild(
-      createItem(
-        `[${item.category}] ${item.title}`,
-        index,
-        item.link,
-        item.score,
-        index < 3
-      )
-    );
-  });
+top.forEach((item, index) => {
+  const el = createItem(
+    `[${item.category}] ${item.title}`,
+    index,
+    item.link,
+    item.score,
+    index < 3
+  );
+
+  container.appendChild(el);
+
+  setTimeout(() => {
+    el.classList.add("show");
+  }, index * (30 + Math.random() * 30));
+});
 }
 
 function renderSkeleton(categoryId) {
