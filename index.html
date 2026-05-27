@@ -151,6 +151,8 @@
   animation: shimmer 1.2s infinite;
   margin-bottom: 8px;
   border-radius: 4px;
+  position: relative;
+  overflow: hidden;
 }
 
 .skeleton-line.short {
@@ -190,6 +192,7 @@
 .skeleton-item {
   height: 18px;
   margin: 10px 0;
+  width: 100%;
   border-radius: 6px;
   background: #1e293b;
   position: relative;
@@ -211,11 +214,6 @@
     transparent
   );
   animation: shimmer 1.2s infinite;
-}
-
-@keyframes shimmer {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(400px); }
 }
 
 /* smooth fade for Top Stories swap */
