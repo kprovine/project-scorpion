@@ -161,6 +161,8 @@
 
 let globalStories = [];
 
+let storyMap = new Map();
+
 const categories = [
 
   {
@@ -291,45 +293,65 @@ function renderGlobalFeed() {
 
 function scoreHeadline(title) {
 
+  const lower = title.toLowerCase();
+
+  // 1. keyword signal
   const keywords = [
-    "breaking", "win", "beats", "shock", "huge",
-    "massive", "update", "release", "deal", "trump",
-    "ai", "nvidia", "war", "record"
+    "breaking", "win", "beats", "shock",
+    "massive", "update", "deal", "record"
   ];
 
   let score = 0;
-  const lower = title.toLowerCase();
 
-  keywords.forEach(word => {
+  for (const word of keywords) {
     if (lower.includes(word)) score += 2;
-  });
+  }
 
-  if (lower.length > 60) score += 1;
+  // 2. urgency signal (caps / intensity)
+  if (title === title.toUpperCase() && title.length > 10) {
+    score += 2;
+  }
+
+  // 3. length signal (very short = often noise, medium = best)
+  if (title.length > 40 && title.length < 120) {
+    score += 2;
+  }
+
+  // 4. entity signal (simple heuristic)
+  if (/[A-Z][a-z]+/.test(title)) {
+    score += 1;
+  }
+
+  // 5. novelty bonus (random small jitter so feeds don’t feel static)
+  score += Math.random() * 0.5;
 
   return score;
 }
 
+function normalizeTitle(title) {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 async function loadRSSFeed(category) {
-  
-  const proxy =
-  `/api/rss?url=${encodeURIComponent(category.rssUrl)}`;
+
+  const url = `/api/rss?url=${encodeURIComponent(category.rssUrl)}`;
 
   try {
 
-    const res = await fetch(proxy);
+    const res = await fetch(url);
 
     if (!res.ok) {
-      throw new Error("Proxy failed: " + res.status);
+      throw new Error("RSS proxy failed: " + res.status);
     }
 
-    const data = await res.json();
-
-    if (!data.contents) {
-      throw new Error("Empty RSS response");
-    }
+    const xmlText = await res.text();
 
     const parser = new DOMParser();
-    const xml = parser.parseFromString(data.contents, "text/xml");
+    const xml = parser.parseFromString(xmlText, "text/xml");
 
     const items = Array.from(xml.querySelectorAll("item"));
 
@@ -341,7 +363,8 @@ async function loadRSSFeed(category) {
         return {
           title,
           link,
-          score: scoreHeadline(title)
+          score: scoreHeadline(title),
+          category: category.id
         };
       })
       .filter(i => i.title && i.link);
@@ -353,59 +376,63 @@ async function loadRSSFeed(category) {
 
     cleaned = cleaned.map((item, index) => ({
       ...item,
-      isHot: index < hotCutoff,
-      category: category.id
+      isHot: index < hotCutoff
     }));
 
-    return cleaned;
+    // -------------------------
+    // DEDUP STEP (GLOBAL MERGE)
+    // -------------------------
+    cleaned.forEach(item => {
+
+      const key = normalizeTitle(item.title);
+
+      if (!storyMap.has(key)) {
+        storyMap.set(key, item);
+      } else {
+        const existing = storyMap.get(key);
+
+        // keep higher quality version
+        if (item.score > existing.score) {
+          storyMap.set(key, {
+            ...existing,
+            ...item,
+            score: item.score
+          });
+        }
+      }
+    });
+
+    return Array.from(storyMap.values());
 
   } catch (err) {
 
-    console.warn(`${category.title} failed, retrying once...`, err);
+    console.error(`${category.title} error:`, err);
 
-    // simple retry once
-    try {
-
-      const res = await fetch(proxy);
-      const data = await res.json();
-
-      const parser = new DOMParser();
-      const xml = parser.parseFromString(data.contents, "text/xml");
-
-      const items = Array.from(xml.querySelectorAll("item"));
-
-      return items.slice(0, 10).map(item => ({
-        title: item.querySelector("title")?.textContent || "",
-        link: item.querySelector("link")?.textContent || "",
-        score: 0,
-        isHot: false,
-        category: category.id
-      }));
-
-    } catch (retryErr) {
-
-      console.error(`${category.title} final failure:`, retryErr);
-
-      return [];
-    }
+    return [];
   }
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
 
+  // 1. reset global state (IMPORTANT)
+  storyMap = new Map();
+  globalStories = [];
+
+  // 2. build UI shell
   createDashboard();
 
   try {
-    const results = await Promise.all(
+
+    // 3. load all feeds (each feed contributes into storyMap)
+    await Promise.all(
       categories.map(cat => loadRSSFeed(cat))
     );
 
-    const allData = results.flat();
+    // 4. NOW build final dataset from deduped global map
+    globalStories = Array.from(storyMap.values());
 
-    renderAllCategories(allData);
-
-    globalStories = allData;
-
+    // 5. render everything from ONE source of truth
+    renderAllCategories(globalStories);
     renderGlobalFeed();
 
   } catch (err) {
