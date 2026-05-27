@@ -363,12 +363,18 @@ async function loadRSSFeed(category) {
       return [];
     }
 
-    const parser = new DOMParser();
-    const xml = parser.parseFromString(xmlText, "text/xml");
+ const parser = new DOMParser();
+const xml = parser.parseFromString(xmlText, "text/xml");
 
-    const items = Array.from(xml.getElementsByTagName("item"));
+// CHECK FOR PARSE ERRORS
+if (xml.getElementsByTagName("parsererror").length > 0) {
+  console.warn("XML PARSE FAILED for:", category.id);
+  return [];
+}
 
-    console.log(category.id, "ITEM COUNT:", items.length);
+const items = xml.getElementsByTagName("item");
+
+console.log(category.id, "ITEM COUNT:", items.length);
 
     let cleaned = items
       .map(item => {
