@@ -351,9 +351,9 @@ async function loadRSSFeed(category) {
     const xmlText = await res.text();
 
    const parser = new DOMParser();
-   const xml = parser.parseFromString(data.contents, "text/xml");
+   const xml = parser.parseFromString(xmlText, "text/xml");
 
-   const items = xml.getElementsByTagName("item");
+   const items = Array.from(xml.getElementsByTagName("item"));
 
 console.log("ITEM COUNT:", items.length);
 
@@ -404,7 +404,7 @@ console.log("ITEM COUNT:", items.length);
       }
     });
 
-    return Array.from(storyMap.values());
+    return cleaned;
 
   } catch (err) {
 
@@ -414,6 +414,7 @@ console.log("ITEM COUNT:", items.length);
   }
 
   console.log(category.id, data.contents.slice(0, 200));
+  console.log("LOADING:", category.id);
 
 }
 
