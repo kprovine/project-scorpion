@@ -348,20 +348,21 @@ async function loadRSSFeed(category) {
       throw new Error("RSS proxy failed: " + res.status);
     }
 
-    const xmlText = await res.text();
+    const data = await res.json();
+    const xmlText = data.xml;
 
     // -------------------------
     // SINGLE ROBUST GUARD
     // -------------------------
-    if (
-      !xmlText ||
-      xmlText.trim().startsWith("{") ||
-      xmlText.trim().startsWith("<!DOCTYPE") ||
-      !xmlText.includes("<item")
-    ) {
-      console.warn("Bad RSS payload for:", category.id);
-      return [];
-    }
+   if (!xmlText || typeof xmlText !== "string") {
+  console.warn("Bad RSS payload:", xmlText);
+  return [];
+}
+
+if (!xmlText.includes("<item")) {
+  console.warn("No RSS items found for:", category.id);
+  return [];
+}
 
  const parser = new DOMParser();
 const xml = parser.parseFromString(xmlText, "text/xml");
