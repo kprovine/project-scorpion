@@ -350,10 +350,12 @@ async function loadRSSFeed(category) {
 
     const xmlText = await res.text();
 
-    const parser = new DOMParser();
-    const xml = parser.parseFromString(xmlText, "text/xml");
+   const parser = new DOMParser();
+   const xml = parser.parseFromString(data.contents, "text/xml");
 
-    const items = Array.from(xml.querySelectorAll("item"));
+   const items = xml.getElementsByTagName("item");
+
+console.log("ITEM COUNT:", items.length);
 
     let cleaned = items
       .map(item => {
@@ -412,7 +414,7 @@ async function loadRSSFeed(category) {
   }
 
   console.log(category.id, data.contents.slice(0, 200));
-  
+
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
