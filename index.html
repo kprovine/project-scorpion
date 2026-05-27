@@ -345,9 +345,12 @@ function renderCategory(category, items) {
   if (!container) return;
 
   // keep header
-  const header = container.querySelector("h3");
-  container.replaceChildren();
-  container.innerHTML = `<h3>${category.title}</h3>`;
+    container.innerHTML = `<h3>${category.title}</h3>`;
+
+  if (!items || items.length === 0) {
+    container.innerHTML += `<div style="color:#64748b; padding:10px 0;">No stories</div>`;
+    return;
+  }
 
   items.forEach((item, index) => {
 
@@ -358,9 +361,6 @@ function renderCategory(category, items) {
       item.score,
       item.isHot
     );
-
-        el.style.opacity = 0;
-        el.style.transform = "translateY(8px)";
 
     container.appendChild(el);
 
@@ -458,8 +458,6 @@ function streamGlobalFeed() {
 }
 
 function streamCategories() {
-
-  let streamReady = false;
 
   categories.forEach(cat => {
     const container = document.getElementById(cat.id);
