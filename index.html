@@ -364,32 +364,26 @@ if (!xmlText.includes("<item")) {
   return [];
 }
 
- const parser = new DOMParser();
+const parser = new DOMParser();
 const xml = parser.parseFromString(xmlText, "text/xml");
 
-// CHECK FOR PARSE ERRORS
-if (xml.getElementsByTagName("parsererror").length > 0) {
-  console.warn("XML PARSE FAILED for:", category.id);
-  return [];
-}
+const items = Array.from(xml.getElementsByTagName("item"));
 
-const items = xml.getElementsByTagName("item");
+console.log("ITEM COUNT:", items.length);
 
-console.log(category.id, "ITEM COUNT:", items.length);
+  let cleaned = items
+  .map(item => {
+    const title = item.querySelector("title")?.textContent || "";
+    const link = item.querySelector("link")?.textContent || "";
 
-    let cleaned = items
-      .map(item => {
-        const title = item.querySelector("title")?.textContent || "";
-        const link = item.querySelector("link")?.textContent || "";
-
-        return {
-          title,
-          link,
-          score: scoreHeadline(title),
-          category: category.id
-        };
-      })
-      .filter(i => i.title && i.link);
+    return {
+      title,
+      link,
+      score: scoreHeadline(title),
+      category: category.id
+    };
+  })
+  .filter(i => i.title && i.link);
 
     cleaned.sort((a, b) => b.score - a.score);
     cleaned = cleaned.slice(0, 10);
