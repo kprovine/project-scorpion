@@ -183,6 +183,52 @@
   }
 }
 
+/* ---------------------------
+   SKELETON LOADING STATE
+---------------------------- */
+
+.skeleton-item {
+  height: 18px;
+  margin: 10px 0;
+  border-radius: 6px;
+  background: #1e293b;
+  position: relative;
+  overflow: hidden;
+}
+
+/* shimmer effect */
+.skeleton-item::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -150px;
+  height: 100%;
+  width: 150px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255,255,255,0.08),
+    transparent
+  );
+  animation: shimmer 1.2s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(400px); }
+}
+
+/* smooth fade for Top Stories swap */
+.fade-out {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.fade-in {
+  opacity: 1;
+  transition: opacity 0.25s ease;
+}
+
 </style>
 
 </head>
@@ -328,40 +374,39 @@ function renderAllCategories(allData) {
 }
 
 function renderGlobalFeed() {
+  const container = document.getElementById("global");
+  if (!container) return;
 
-  const dashboard = document.getElementById("dashboard");
-
-  let container = document.getElementById("global");
-
-  if (!container) {
-    container = document.createElement("div");
-    container.className = "card";
-    container.id = "global";
-    container.innerHTML = "<h3>🔥 Top Stories</h3>";
-    dashboard.prepend(container);
-  }
-
-  container.innerHTML = "<h3>🔥 Top Stories</h3>";
-
-  const top = globalStories
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 10);
-
-top.forEach((item, index) => {
-  const el = createItem(
-    `[${item.category}] ${item.title}`,
-    index,
-    item.link,
-    item.score,
-    index < 3
-  );
-
-  container.appendChild(el);
+  // fade OUT old skeleton or old content (very subtle)
+  container.style.opacity = 0.6;
 
   setTimeout(() => {
-    el.classList.add("show");
-  }, index * (30 + Math.random() * 30));
-});
+    container.innerHTML = "<h3>🔥 Top Stories</h3>";
+
+    const top = globalStories
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10);
+
+    top.forEach((item, index) => {
+      const el = createItem(
+        `[${item.category}] ${item.title}`,
+        index,
+        item.link,
+        item.score,
+        index < 3
+      );
+
+      container.appendChild(el);
+
+      setTimeout(() => {
+        el.classList.add("show");
+      }, index * (30 + Math.random() * 30));
+    });
+
+    // fade back in
+    container.style.opacity = 1;
+
+  }, 80);
 }
 
 function renderSkeleton(categoryId) {
@@ -379,6 +424,27 @@ function renderSkeleton(categoryId) {
       <div class="skeleton-line short"></div>
     `;
 
+    container.appendChild(skeleton);
+  }
+}
+
+function renderTopStoriesSkeleton() {
+  let container = document.getElementById("global");
+
+  if (!container) {
+    const dashboard = document.getElementById("dashboard");
+    container = document.createElement("div");
+    container.className = "card";
+    container.id = "global";
+    container.innerHTML = "<h3>🔥 Top Stories</h3>";
+    dashboard.prepend(container);
+  }
+
+  container.innerHTML = "<h3>🔥 Top Stories</h3>";
+
+  for (let i = 0; i < 8; i++) {
+    const skeleton = document.createElement("div");
+    skeleton.className = "skeleton-item";
     container.appendChild(skeleton);
   }
 }
@@ -532,6 +598,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // 2. build UI shell
   createDashboard();
+  renderTopStoriesSkeleton();
 
    // show loading state immediately
   categories.forEach(cat => {
