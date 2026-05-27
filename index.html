@@ -254,6 +254,8 @@ let renderedTopStories = new Set();
 
 let renderedItems = new Set();
 
+let streamReady = false;
+
 const categories = [
 
   {
@@ -281,17 +283,18 @@ const categories = [
 function createDashboard() {
   const dashboard = document.getElementById("dashboard");
 
+  const globalCard = document.createElement("div");
+  globalCard.className = "card";
+  globalCard.id = "global";
+  globalCard.innerHTML = "<h3>🔥 Top Stories</h3>";
+
+  dashboard.appendChild(globalCard);
+
   categories.forEach(cat => {
     const card = document.createElement("div");
     card.className = "card";
     card.id = cat.id;
-
     card.innerHTML = `<h3>${cat.title}</h3>`;
-
-for (let i = 0; i < 5; i++) {
-      card.appendChild(createSkeletonItem());
-    }
-
     dashboard.appendChild(card);
   });
 }
@@ -342,6 +345,8 @@ function renderCategory(category, items) {
   if (!container) return;
 
   // keep header
+  const header = container.querySelector("h3");
+  container.replaceChildren();
   container.innerHTML = `<h3>${category.title}</h3>`;
 
   items.forEach((item, index) => {
@@ -453,6 +458,9 @@ function streamGlobalFeed() {
 }
 
 function streamCategories() {
+
+  let streamReady = false;
+
   categories.forEach(cat => {
     const container = document.getElementById(cat.id);
     if (!container) return;
@@ -694,10 +702,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     // build final dataset
     globalStories = Array.from(storyMap.values());
 
-    // IMPORTANT: clear skeletons implicitly by full render
+    // clear skeletons implicitly by full render
     renderAllCategories(globalStories);
     renderGlobalFeed();
 
+    streamReady = true;
+
+    
     // start streaming updates
     setInterval(() => {
       streamGlobalFeed();
