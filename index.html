@@ -350,12 +350,25 @@ async function loadRSSFeed(category) {
 
     const xmlText = await res.text();
 
-   const parser = new DOMParser();
-   const xml = parser.parseFromString(xmlText, "text/xml");
+    // -------------------------
+    // SINGLE ROBUST GUARD
+    // -------------------------
+    if (
+      !xmlText ||
+      xmlText.trim().startsWith("{") ||
+      xmlText.trim().startsWith("<!DOCTYPE") ||
+      !xmlText.includes("<item")
+    ) {
+      console.warn("Bad RSS payload for:", category.id);
+      return [];
+    }
 
-   const items = Array.from(xml.getElementsByTagName("item"));
+    const parser = new DOMParser();
+    const xml = parser.parseFromString(xmlText, "text/xml");
 
-console.log("ITEM COUNT:", items.length);
+    const items = Array.from(xml.getElementsByTagName("item"));
+
+    console.log(category.id, "ITEM COUNT:", items.length);
 
     let cleaned = items
       .map(item => {
@@ -393,7 +406,6 @@ console.log("ITEM COUNT:", items.length);
       } else {
         const existing = storyMap.get(key);
 
-        // keep higher quality version
         if (item.score > existing.score) {
           storyMap.set(key, {
             ...existing,
@@ -408,14 +420,9 @@ console.log("ITEM COUNT:", items.length);
 
   } catch (err) {
 
-    console.error(`${category.title} error:`, err);
-
+    console.error(`${category.id} error:`, err);
     return [];
   }
-
-  console.log(category.id, data.contents.slice(0, 200));
-  console.log("LOADING:", category.id);
-
 }
 
 document.addEventListener("DOMContentLoaded", async () => {

@@ -49,10 +49,10 @@ export default async function handler(req, res) {
     // -------------------------
     // 4. RETURN
     // -------------------------
-    return res.status(200).json({
-      contents: text,
-      cached: false
-    });
+    return res.status(500).json({
+  error: "Failed to fetch RSS",
+  details: err.message
+});
 
   } catch (err) {
 
