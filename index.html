@@ -89,10 +89,16 @@
     border-bottom: 1px solid #1e293b;
     line-height: 1.4;
     cursor: pointer;
-
+    opacity: 0;
+    transform: translateY(6px);
     transition: opacity 0.2s ease,
                 transform 0.2s ease;
   }
+
+  .item.show {
+  opacity: 1;
+  transform: translateY(0);
+}
 
   .item:last-child {
     border-bottom: none;
@@ -215,6 +221,11 @@ function createItem(text, index, link = null, score = 0, isHot = false) {
   const div = document.createElement("div");
   div.className = "item";
 
+  // force reflow-friendly stagger timing
+  setTimeout(() => {
+    div.classList.add("show");
+  }, index * 40); // stagger effect
+
   const timestamp = new Date().toLocaleTimeString();
 
   const content = link
@@ -239,25 +250,23 @@ function renderCategory(category, items) {
 
   container.innerHTML = `<h3>${category.title}</h3>`;
 
- // fade out BEFORE rendering
- container.style.opacity = 0;
-
   items.forEach((item, index) => {
-    container.appendChild(
-      createItem(
-        item.title,
-        index,
-        item.link,
-        item.score,
-        item.isHot
-      )
-    );
-  });
 
-  // fade in AFTER rendering
-  setTimeout(() => {
-    container.style.opacity = 1;
-  }, 50);
+    const el = createItem(
+      item.title,
+      index,
+      item.link,
+      item.score,
+      item.isHot
+    );
+
+    container.appendChild(el);
+
+    // stagger animation
+    setTimeout(() => {
+      el.classList.add("show");
+    }, index * 60); // 60ms stagger
+  });
 }
 
 function renderAllCategories(allData) {
