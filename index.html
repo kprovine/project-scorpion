@@ -144,17 +144,17 @@
     opacity: 0.7;
   }
 
-  .skeleton-line {
+.skeleton-line {
   height: 10px;
-  background: #1e293b;
-  border-radius: 6px;
-  margin: 8px 0;
-  position: relative;
-  overflow: hidden;
+  background: linear-gradient(90deg, #1e293b, #334155, #1e293b);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+  margin-bottom: 8px;
+  border-radius: 4px;
 }
 
-  .skeleton-line.short {
-  width: 40%;
+.skeleton-line.short {
+  width: 60%;
 }
 
 .skeleton-line.long {
@@ -178,10 +178,10 @@
 }
 
  @keyframes shimmer {
-  100% {
-    left: 100%;
-  }
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
+
 
 /* ---------------------------
    SKELETON LOADING STATE
@@ -251,6 +251,8 @@ let storyMap = new Map();
 let isLoading = true;
 
 let renderedTopStories = new Set();
+
+let renderedItems = new Set();
 
 const categories = [
 
@@ -337,7 +339,9 @@ function createSkeletonItem() {
 function renderCategory(category, items) {
 
   const container = document.getElementById(category.id);
+  if (!container) return;
 
+  // keep header
   container.innerHTML = `<h3>${category.title}</h3>`;
 
   items.forEach((item, index) => {
@@ -349,6 +353,9 @@ function renderCategory(category, items) {
       item.score,
       item.isHot
     );
+
+        el.style.opacity = 0;
+        el.style.transform = "translateY(8px)";
 
     container.appendChild(el);
 
@@ -445,8 +452,46 @@ function streamGlobalFeed() {
   });
 }
 
+function streamCategories() {
+  categories.forEach(cat => {
+    const container = document.getElementById(cat.id);
+    if (!container) return;
+
+    const items = globalStories
+      .filter(i => i.category === cat.id)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10);
+
+    items.forEach((item) => {
+      const key = normalizeTitle(item.title);
+      const id = `${cat.id}:${key}`;
+
+      if (renderedItems.has(id)) return;
+      renderedItems.add(id);
+
+      const el = createItem(
+        item.title,
+        0,
+        item.link,
+        item.score,
+        item.isHot
+      );
+
+      el.style.opacity = 0;
+      el.style.transform = "translateY(10px)";
+
+      container.appendChild(el);
+
+      setTimeout(() => {
+        el.classList.add("show");
+      }, 20);
+    });
+  });
+}
+
 function renderSkeleton(categoryId) {
   const container = document.getElementById(categoryId);
+  if (!container) return;
 
   container.innerHTML = `<h3>Loading...</h3>`;
 
@@ -656,6 +701,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // start streaming updates
     setInterval(() => {
       streamGlobalFeed();
+      streamCategories();
     }, 60000);
 
   } catch (err) {
