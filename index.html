@@ -126,6 +126,14 @@
     font-size: 11px;
   }
 
+  .new {
+  color: #ef4444;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 8px;
+  letter-spacing: 0.5px;
+}
+
   .item a {
     display: inline-block;
     color: inherit;
@@ -137,6 +145,12 @@
     text-decoration: underline;
     color: #60a5fa;
   }
+
+  .item.new-flash {
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.35),
+              0 0 18px rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.06);
+}
 
   /* =========================
      SKELETON LOADING
@@ -275,13 +289,9 @@ let globalStories = [];
 
 let storyMap = new Map();
 
-let isLoading = true;
-
-let renderedTopStories = new Set();
-
-let renderedItems = new Set();
-
 let streamReady = false;
+
+let itemState = {};
 
 const categories = [
 
@@ -314,7 +324,6 @@ function createDashboard() {
   globalCard.className = "card";
   globalCard.id = "global";
   globalCard.innerHTML = "<h3>🔥 Top Stories</h3>";
-
   dashboard.appendChild(globalCard);
 
   categories.forEach(cat => {
@@ -326,7 +335,7 @@ function createDashboard() {
   });
 }
 
-function createItem(text, index, link = null, score = 0, isHot = false) {
+function createItem(text, index, link = null, score = 0, isHot = false, isNew = false) {
 
   const div = document.createElement("div");
   div.className = "item";
@@ -339,15 +348,14 @@ function createItem(text, index, link = null, score = 0, isHot = false) {
   const timestamp = new Date().toLocaleTimeString();
 
   const content = link
-    ? `<a href="${link}" target="_blank" style="color:inherit; text-decoration:none;">
-         ${text}
-       </a>`
+    ? `<a href="${link}" target="_blank" style="color:inherit; text-decoration:none;">${text}</a>`
     : text;
 
-  div.innerHTML = `
+    div.innerHTML = `
     <span class="rank">#${index + 1}</span>
     ${content}
     ${isHot ? '<span class="hot">HOT</span>' : ''}
+    ${isNew ? '<span class="new">NEW</span>' : ''}
     <div class="timestamp">${timestamp}</div>
   `;
 
@@ -381,6 +389,11 @@ function renderCategory(category, items) {
 
   items.forEach((item, index) => {
 
+    const id = `${category.id}:${normalizeTitle(item.title)}`;
+    const state = getItemState(id);
+
+    const isNew = (Date.now() - state.firstSeen) < 10 * 60 * 1000;
+
     const el = createItem(
       item.title,
       index,
@@ -392,9 +405,7 @@ function renderCategory(category, items) {
     container.appendChild(el);
 
     // stagger animation
-    setTimeout(() => {
-      el.classList.add("show");
-    }, index * 60); // 60ms stagger
+    setTimeout(() => el.classList.add("show"), index * 60); // 60ms stagger
   });
 }
 
@@ -429,19 +440,24 @@ function renderGlobalFeed() {
       .slice(0, 10);
 
     top.forEach((item, index) => {
+
+      const id = `global:${normalizeTitle(item.title)}`;
+      const state = getItemState(id);
+
+      const isNew = (Date.now() - state.firstSeen) < 10 * 60 * 1000;
+
       const el = createItem(
         `[${item.category}] ${item.title}`,
         index,
         item.link,
         item.score,
-        index < 3
+        index < 3,
+        isNew
       );
 
       container.appendChild(el);
 
-      setTimeout(() => {
-        el.classList.add("show");
-      }, index * (30 + Math.random() * 30));
+      setTimeout(() => el.classList.add("show"), index * 40);
     });
 
     // fade back in
@@ -459,24 +475,40 @@ function streamGlobalFeed() {
     .slice(0, 10);
 
   top.forEach((item, index) => {
-    const key = normalizeTitle(item.title);
 
-    if (renderedTopStories.has(key)) return;
+    const id = `global:${normalizeTitle(item.title)}`;
+    const state = getItemState(id);
 
-    renderedTopStories.add(key);
+    // skip if already rendered
+    if (state.renderedGlobal) return;
+    state.renderedGlobal = true;
+
+    // NEW logic per item
+    const isNew = (Date.now() - state.firstSeen) < 10 * 60 * 1000;
 
     const el = createItem(
       `[${item.category}] ${item.title}`,
       index,
       item.link,
       item.score,
-      index < 3
+      index < 3,
+      isNew
     );
 
     el.style.opacity = 0;
     el.style.transform = "translateY(10px)";
 
-    container.appendChild(el);
+    container.prepend(el);
+
+    // glow flash (attention)
+    requestAnimationFrame(() => {
+    el.classList.add("new-flash");
+    });
+
+    // remove glow after 5s
+    setTimeout(() => {
+    el.classList.remove("new-flash");
+    }, 5000);
 
     setTimeout(() => {
       el.classList.add("show");
@@ -495,19 +527,24 @@ function streamCategories() {
       .sort((a, b) => b.score - a.score)
       .slice(0, 10);
 
-    items.forEach((item) => {
-      const key = normalizeTitle(item.title);
-      const id = `${cat.id}:${key}`;
+    items.forEach((item, index) => {
 
-      if (renderedItems.has(id)) return;
-      renderedItems.add(id);
+      const id = `${cat.id}:${normalizeTitle(item.title)}`;
+      const state = getItemState(id);
+
+      if (state.renderedCategories[cat.id]) return;
+      state.renderedCategories[cat.id] = true;
+
+      // mark as NEW at insertion time
+      const isNew = (Date.now() - state.firstSeen) < 10 * 60 * 1000;
 
       const el = createItem(
         item.title,
-        0,
+        index,
         item.link,
         item.score,
-        item.isHot
+        item.isHot,
+        isNew
       );
 
       el.style.opacity = 0;
@@ -515,9 +552,17 @@ function streamCategories() {
 
       container.appendChild(el);
 
+      // trigger flash
+      requestAnimationFrame(() => {
+        el.classList.add("new-flash");
+      });
+
+      // remove glow after 5s
       setTimeout(() => {
-        el.classList.add("show");
-      }, 20);
+        el.classList.remove("new-flash");
+      }, 5000);
+
+      setTimeout(() => el.classList.add("show"), 20);
     });
   });
 }
@@ -608,6 +653,17 @@ function normalizeTitle(title) {
     .replace(/[^a-z0-9\s]/g, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function getItemState(id) {
+  if (!itemState[id]) {
+    itemState[id] = {
+      renderedGlobal: false,
+      renderedCategories: {},
+      firstSeen: Date.now()
+    };
+  }
+  return itemState[id];
 }
 
 // 3. data layer
@@ -706,44 +762,27 @@ console.log("ITEM COUNT:", items.length);
 
 document.addEventListener("DOMContentLoaded", async () => {
 
-  // reset state
   storyMap = new Map();
   globalStories = [];
 
-  // build UI shell
   createDashboard();
 
-  // show skeletons
-  renderTopStoriesSkeleton();
+  renderTopStoriesSkeleton?.();
   categories.forEach(cat => renderSkeleton(cat.id));
 
-  try {
+  await Promise.all(categories.map(loadRSSFeed));
 
-    // fetch data
-    await Promise.all(
-      categories.map(cat => loadRSSFeed(cat))
-    );
+  globalStories = Array.from(storyMap.values());
 
-    // build final dataset
-    globalStories = Array.from(storyMap.values());
+  renderAllCategories(globalStories);
+  renderGlobalFeed();
 
-    // clear skeletons implicitly by full render
-    renderAllCategories(globalStories);
-    renderGlobalFeed();
+  streamReady = true;
 
-    streamReady = true;
-
-    
-    // start streaming updates
-    setInterval(() => {
-      streamGlobalFeed();
-      streamCategories();
-    }, 60000);
-
-  } catch (err) {
-    console.error("GLOBAL FAILURE:", err);
-  }
-
+  setInterval(() => {
+    streamGlobalFeed();
+    streamCategories();
+  }, 60000);
 });
 
 </script>
