@@ -547,10 +547,7 @@ function streamCategories() {
 
       const header = container.querySelector("h3");
 
-      container.insertBefore(
-        el,
-        header ? header.nextSibling : container.firstChild
-      );
+      container.appendChild(el);
 
       requestAnimationFrame(() => {
         el.classList.add("new-flash");
