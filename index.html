@@ -291,25 +291,35 @@ let storyMap = new Map();
 let itemState = {};
 
 const categories = [
-
   {
     id: "sports",
     title: "Sports",
-    rssUrl: "https://feeds.bbci.co.uk/sport/rss.xml"
+    sources: [
+      "https://feeds.bbci.co.uk/sport/rss.xml",
+      "https://www.espn.com/espn/rss/news",
+      "https://www.reuters.com/rssFeed/sportsNews"
+    ]
   },
 
   {
     id: "gaming",
     title: "Gaming",
-    rssUrl: "https://feeds.arstechnica.com/arstechnica/index"
+    sources: [
+      "https://feeds.arstechnica.com/arstechnica/index",
+      "https://www.ign.com/rss/articles",
+      "https://www.polygon.com/rss/index.xml"
+    ]
   },
 
   {
     id: "markets",
     title: "Markets",
-    rssUrl: "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC&region=US&lang=en-US"
+    sources: [
+      "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC&region=US&lang=en-US",
+      "https://www.cnbc.com/id/100003114/device/rss/rss.html",
+      "https://www.reuters.com/rssFeed/businessNews"
+    ]
   }
-
 ];
 
 
@@ -665,92 +675,86 @@ function getItemState(id) {
 
 async function loadRSSFeed(category) {
 
-  const url = `/api/rss?url=${encodeURIComponent(category.rssUrl)}`;
+  const allItems = [];
 
-  try {
+  for (const feedUrl of category.sources) {
 
-    const res = await fetch(url);
+    const url = `/api/rss?url=${encodeURIComponent(feedUrl)}`;
 
-    if (!res.ok) {
-      throw new Error("RSS proxy failed: " + res.status);
+    try {
+      const res = await fetch(url);
+
+      if (!res.ok) continue;
+
+      const data = await res.json();
+      const xmlText = data.xml;
+
+      if (!xmlText || typeof xmlText !== "string") continue;
+      if (!xmlText.includes("<item")) continue;
+
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(xmlText, "text/xml");
+
+      const items = Array.from(xml.getElementsByTagName("item"));
+
+      const cleaned = items
+        .map(item => {
+          const title = item.querySelector("title")?.textContent || "";
+          const link = item.querySelector("link")?.textContent || "";
+
+          return {
+            title,
+            link,
+            score: scoreHeadline(title),
+            category: category.id,
+            source: feedUrl   
+          };
+        })
+        .filter(i => i.title && i.link);
+
+      allItems.push(...cleaned);
+
+    } catch (err) {
+      console.error(`Feed failed:`, feedUrl, err);
     }
-
-    const data = await res.json();
-    const xmlText = data.xml;
-
-    // -------------------------
-    // SINGLE ROBUST GUARD
-    // -------------------------
-   if (!xmlText || typeof xmlText !== "string") {
-  console.warn("Bad RSS payload:", xmlText);
-  return [];
-}
-
-if (!xmlText.includes("<item")) {
-  console.warn("No RSS items found for:", category.id);
-  return [];
-}
-
-const parser = new DOMParser();
-const xml = parser.parseFromString(xmlText, "text/xml");
-
-const items = Array.from(xml.getElementsByTagName("item"));
-
-console.log("ITEM COUNT:", items.length);
-
-  let cleaned = items
-  .map(item => {
-    const title = item.querySelector("title")?.textContent || "";
-    const link = item.querySelector("link")?.textContent || "";
-
-    return {
-      title,
-      link,
-      score: scoreHeadline(title),
-      category: category.id
-    };
-  })
-  .filter(i => i.title && i.link);
-
-    cleaned.sort((a, b) => b.score - a.score);
-    cleaned = cleaned.slice(0, 10);
-
-    const hotCutoff = Math.max(1, Math.floor(cleaned.length * 0.3));
-
-    cleaned = cleaned.map((item, index) => ({
-      ...item,
-      isHot: index < hotCutoff
-    }));
-
-    // -------------------------
-    // DEDUP STEP (GLOBAL MERGE)
-    // -------------------------
-    cleaned.forEach(item => {
-
-      const key = normalizeTitle(item.title);
-
-      if (!storyMap.has(key)) {
-        storyMap.set(key, item);
-      } else {
-        const existing = storyMap.get(key);
-
-        if (item.score > existing.score) {
-          storyMap.set(key, {
-            ...existing,
-            ...item,
-            score: item.score
-          });
-        }
-      }
-    });
-
-    return cleaned;
-
-  } catch (err) {
-
-    console.error(`${category.id} error:`, err);
-    return [];
   }
+
+  let cleaned = allItems;
+
+  cleaned.sort((a, b) => b.score - a.score);
+  cleaned = cleaned.slice(0, 15);
+
+  const hotCutoff = Math.max(1, Math.floor(cleaned.length * 0.3));
+
+  cleaned = cleaned.map((item, index) => ({
+    ...item,
+    isHot: index < hotCutoff
+  }));
+
+  // -------------------------
+  // DEDUPE 
+  // -------------------------
+
+  cleaned.forEach(item => {
+
+    const key = normalizeTitle(item.title);
+
+    if (!storyMap.has(key)) {
+      storyMap.set(key, item);
+    } else {
+      const existing = storyMap.get(key);
+
+      if (item.score > existing.score) {
+        storyMap.set(key, {
+          ...existing,
+          ...item,
+          score: item.score
+        });
+      }
+    }
+  });
+
+  return cleaned;
 }
 
 // 4. boot
