@@ -86,18 +86,17 @@
      ITEMS
   ========================= */
   .item {
-    padding: 12px 0;
-    border-bottom: 1px solid #1e293b;
-    line-height: 1.4;
-    cursor: pointer;
+  padding: 12px 0;
+  border-bottom: 1px solid #1e293b;
+  line-height: 1.4;
+  cursor: pointer;
 
-    opacity: 0;
-    transform: translateY(8px);
+  opacity: 0;
+  transform: translateY(6px);
 
-    transition: transform 0.25s ease, opacity 0.25s ease;
-    will-change: transform, opacity;
-    transform-origin: top;
-  }
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  will-change: opacity, transform;
+}
 
   .item.show {
   opacity: 1;
@@ -459,17 +458,18 @@ function streamGlobalFeed() {
     .sort((a, b) => b.score - a.score)
     .slice(0, 10);
 
+  const header = container.querySelector("h3");
+
   top.forEach((item, index) => {
 
     const id = `global:${normalizeTitle(item.title)}`;
     const state = getItemState(id);
 
-    // skip if already rendered
     if (state.renderedGlobal) return;
     state.renderedGlobal = true;
 
-    // NEW logic per item
-    const isNew = (Date.now() - state.firstSeen) < 10 * 60 * 1000;
+    const isNew =
+      (Date.now() - state.firstSeen) < 10 * 60 * 1000;
 
     const el = createItem(
       `[${item.category}] ${item.title}`,
@@ -480,24 +480,21 @@ function streamGlobalFeed() {
       isNew
     );
 
-    el.style.opacity = 0;
-    el.style.transform = "translateY(10px)";
+    el.style.opacity = "0";
+    el.style.transform = "translateY(-6px)";
 
-    container.insertBefore(el, container.children[1] || null);
+    // ALWAYS insert under header
+    container.insertBefore(el, header.nextSibling);
 
-    // glow flash (attention)
     requestAnimationFrame(() => {
-    el.classList.add("new-flash");
+      el.classList.add("show");
+      el.classList.add("new-flash");
     });
 
-    // remove glow after 5s
     setTimeout(() => {
-    el.classList.remove("new-flash");
-    }, 5000);
+      el.classList.remove("new-flash");
+    }, 4000);
 
-    setTimeout(() => {
-      el.classList.add("show");
-    }, 20);
   });
 }
 
@@ -508,19 +505,19 @@ function streamCategories() {
     const container = document.getElementById(cat.id);
     if (!container) return;
 
+    const header = container.querySelector("h3");
+
     const items = globalStories
       .filter(i => i.category === cat.id)
       .sort((a, b) => b.score - a.score)
       .slice(0, 10);
 
-    // Insert new stories
     items.forEach((item, index) => {
 
       const id = `${cat.id}:${normalizeTitle(item.title)}`;
       const state = getItemState(id);
 
       if (state.renderedCategories[cat.id]) return;
-
       state.renderedCategories[cat.id] = true;
 
       const isNew =
@@ -535,26 +532,21 @@ function streamCategories() {
         isNew
       );
 
-      el.style.opacity = 0;
+      // IMPORTANT: start hidden
+      el.style.opacity = "0";
+      el.style.transform = "translateY(-6px)";
 
-      const header = container.querySelector("h3");
+      // INSERT DIRECTLY UNDER HEADER
       container.insertBefore(el, header.nextSibling);
 
+      // animate in next frame
       requestAnimationFrame(() => {
-        el.classList.add("new-flash");
+        el.classList.add("show");
       });
 
-      setTimeout(() => {
-        el.classList.remove("new-flash");
-      }, 5000);
-
-      setTimeout(() => {
-        el.classList.add("show");
-      }, 20);
     });
 
   });
-
 }
 
 function renderSkeleton(categoryId) {
