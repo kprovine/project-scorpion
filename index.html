@@ -513,14 +513,6 @@ function streamCategories() {
       .sort((a, b) => b.score - a.score)
       .slice(0, 10);
 
-    // Save positions BEFORE insert
-    const oldPositions = new Map();
-
-    Array.from(container.children).forEach(el => {
-      if (!el.classList.contains("item")) return;
-      oldPositions.set(el, el.getBoundingClientRect().top);
-    });
-
     // Insert new stories
     items.forEach((item, index) => {
 
@@ -546,8 +538,7 @@ function streamCategories() {
       el.style.opacity = 0;
 
       const header = container.querySelector("h3");
-
-      container.appendChild(el);
+      container.insertBefore(el, header.nextSibling);
 
       requestAnimationFrame(() => {
         el.classList.add("new-flash");
@@ -560,35 +551,6 @@ function streamCategories() {
       setTimeout(() => {
         el.classList.add("show");
       }, 20);
-    });
-
-    // Animate old items moving down
-    requestAnimationFrame(() => {
-
-      Array.from(container.children).forEach(el => {
-
-        if (!el.classList.contains("item")) return;
-
-        const oldTop = oldPositions.get(el);
-
-        if (oldTop == null) return;
-
-        const newTop = el.getBoundingClientRect().top;
-
-        const delta = oldTop - newTop;
-
-        if (!delta) return;
-
-        el.style.transform = `translateY(${delta}px)`;
-
-        requestAnimationFrame(() => {
-          el.style.transition =
-            "transform 400ms cubic-bezier(0.2,0.8,0.2,1)";
-          el.style.transform = "";
-        });
-
-      });
-
     });
 
   });
