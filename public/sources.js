@@ -3,6 +3,9 @@
 window.SOURCE_REGISTRY = {
   sports: {
     title: "Sports",
+    type: "feed",
+    maxItems: 15,
+    hotThreshold: 0.3,
     sources: [
       {
         id: "bbc_sport",
@@ -24,6 +27,9 @@ window.SOURCE_REGISTRY = {
 
   gaming: {
     title: "Gaming",
+    type: "feed",
+    maxItems: 15,
+    hotThreshold: 0.3,
     sources: [
       {
         id: "ars_technica",
@@ -45,6 +51,9 @@ window.SOURCE_REGISTRY = {
 
   markets: {
     title: "Markets",
+    type: "feed",
+    maxItems: 15,
+    hotThreshold: 0.3,
     sources: [
       {
         id: "yahoo_finance",
