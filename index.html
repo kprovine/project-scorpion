@@ -282,6 +282,8 @@
 
   <div class="grid" id="dashboard"></div>
 
+<script src="sources.js"></script>
+
 <script>
 
 let globalStories = [];
@@ -290,38 +292,7 @@ let storyMap = new Map();
 
 let itemState = {};
 
-const categories = [
-  {
-    id: "sports",
-    title: "Sports",
-    sources: [
-      "https://feeds.bbci.co.uk/sport/rss.xml",
-      "https://www.espn.com/espn/rss/news",
-      "https://www.reuters.com/rssFeed/sportsNews"
-    ]
-  },
-
-  {
-    id: "gaming",
-    title: "Gaming",
-    sources: [
-      "https://feeds.arstechnica.com/arstechnica/index",
-      "https://www.ign.com/rss/articles",
-      "https://www.polygon.com/rss/index.xml"
-    ]
-  },
-
-  {
-    id: "markets",
-    title: "Markets",
-    sources: [
-      "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC&region=US&lang=en-US",
-      "https://www.cnbc.com/id/100003114/device/rss/rss.html",
-      "https://www.reuters.com/rssFeed/businessNews"
-    ]
-  }
-];
-
+const categories = getCategoryList();
 
 // 1. helpers
 
