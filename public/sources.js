@@ -1,6 +1,6 @@
 // sources.js
 
-const SOURCE_REGISTRY = {
+window.SOURCE_REGISTRY = {
   sports: {
     title: "Sports",
     sources: [
