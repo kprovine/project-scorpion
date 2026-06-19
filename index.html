@@ -284,6 +284,7 @@
 
 <script src="sources.js"></script>
 
+
 <script>
 
 let globalStories = [];
@@ -292,7 +293,11 @@ let storyMap = new Map();
 
 let itemState = {};
 
-const categories = getCategoryList();
+const categories = Object.entries(SOURCE_REGISTRY).map(([id, data]) => ({
+  id,
+  title: data.title,
+  sources: data.sources.map(s => s.rss)
+}));
 
 // 1. helpers
 

@@ -64,12 +64,3 @@ const SOURCE_REGISTRY = {
     ]
   }
 };
-
-// optional helper 
-function getCategoryList() {
-  return Object.entries(SOURCE_REGISTRY).map(([id, data]) => ({
-    id,
-    title: data.title,
-    sources: data.sources.map(s => s.rss)
-  }));
-}
