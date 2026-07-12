@@ -34,7 +34,7 @@ Goal: make the current dashboard load and refresh stories dependably.
 - [x] Verify every configured RSS source.
 - [x] Store readable source names and real publication times.
 - [x] Preserve useful content when an individual source fails.
-- [ ] Verify loading, refreshing, failure handling, and mobile behavior.
+- [x] Verify loading, refreshing, failure handling, and mobile behavior.
 
 ## Phase 2 — Feed quality
 
