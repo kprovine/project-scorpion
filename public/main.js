@@ -19,6 +19,7 @@ function createDashboard() {
   globalCard.id = "global";
   globalCard.innerHTML = `
     <h3>🔥 Top Stories</h3>
+    <div class="feed-status">Loading sources…</div>
     <div class="feed"></div>
   `;
   dashboard.appendChild(globalCard);
@@ -29,6 +30,7 @@ function createDashboard() {
     card.id = category.id;
     card.innerHTML = `
       <h3>${category.title}</h3>
+      <div class="feed-status">Loading sources…</div>
       <div class="feed"></div>
     `;
     dashboard.appendChild(card);
@@ -160,6 +162,91 @@ function renderLoadingState() {
   categories.forEach((category) => renderSkeleton(category.id));
 }
 
+function formatUpdatedAt(updatedAt) {
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit"
+  }).format(updatedAt);
+}
+
+function renderFeedStatus(cardId, message, state = "healthy") {
+  const status = document.querySelector(`#${cardId} .feed-status`);
+  if (!status) return;
+
+  status.textContent = message;
+  status.className = `feed-status ${state}`;
+}
+
+function renderRefreshStatuses(categoryResults, updatedAt) {
+  let unavailableSourceCount = 0;
+  let cachedSourceCount = 0;
+  let preservedCategoryCount = 0;
+
+  categoryResults.forEach((result) => {
+    unavailableSourceCount += result.failedSources.length;
+    cachedSourceCount += result.staleSources.length;
+    if (result.preserved) preservedCategoryCount += 1;
+
+    if (result.preserved) {
+      renderFeedStatus(
+        result.categoryId,
+        "Update failed • Showing previous stories",
+        "error"
+      );
+      return;
+    }
+
+    if (result.items.length === 0) {
+      renderFeedStatus(
+        result.categoryId,
+        "Feed unavailable • Retrying automatically",
+        "error"
+      );
+      return;
+    }
+
+    const details = [];
+    if (result.failedSources.length > 0) {
+      details.push(`${result.failedSources.length} source unavailable`);
+    }
+    if (result.staleSources.length > 0) {
+      details.push(`${result.staleSources.length} source using cached data`);
+    }
+
+    const message = details.length > 0
+      ? `Updated ${formatUpdatedAt(updatedAt)} • ${details.join(" • ")}`
+      : `Updated ${formatUpdatedAt(updatedAt)}`;
+
+    renderFeedStatus(
+      result.categoryId,
+      message,
+      details.length > 0 ? "degraded" : "healthy"
+    );
+  });
+
+  const globalDetails = [];
+  if (preservedCategoryCount > 0) {
+    globalDetails.push(`${preservedCategoryCount} category showing previous stories`);
+  }
+  if (unavailableSourceCount > 0) {
+    globalDetails.push(`${unavailableSourceCount} source unavailable`);
+  }
+  if (cachedSourceCount > 0) {
+    globalDetails.push(`${cachedSourceCount} source using cached data`);
+  }
+
+  const globalMessage = globalDetails.length > 0
+    ? `Updated ${formatUpdatedAt(updatedAt)} • ${globalDetails.join(" • ")}`
+    : `Updated ${formatUpdatedAt(updatedAt)}`;
+
+  renderFeedStatus(
+    "global",
+    globalMessage,
+    globalDetails.length > 0 ? "degraded" : "healthy"
+  );
+}
+
 // 2. Scoring and normalization
 
 function scoreHeadline(title) {
@@ -241,19 +328,26 @@ function formatPublishedAt(publishedAt) {
 
 async function loadRSSFeed(category) {
   const allItems = [];
+  const failedSources = [];
+  const staleSources = [];
 
   for (const source of category.sources) {
     const url = `/api/rss?url=${encodeURIComponent(source.rss)}`;
 
     try {
       const response = await fetch(url);
-      if (!response.ok) continue;
+      if (!response.ok) {
+        failedSources.push(source.name);
+        continue;
+      }
 
       const data = await response.json();
       const xmlText = data.xml;
 
-      if (!xmlText || typeof xmlText !== "string") continue;
-      if (!xmlText.includes("<item")) continue;
+      if (!xmlText || typeof xmlText !== "string" || !xmlText.includes("<item")) {
+        failedSources.push(source.name);
+        continue;
+      }
 
       const parser = new DOMParser();
       const xml = parser.parseFromString(xmlText, "text/xml");
@@ -276,8 +370,18 @@ async function loadRSSFeed(category) {
         })
         .filter((item) => item.title && item.link);
 
+      if (normalizedItems.length === 0) {
+        failedSources.push(source.name);
+        continue;
+      }
+
+      if (data.stale) {
+        staleSources.push(source.name);
+      }
+
       allItems.push(...normalizedItems);
     } catch (error) {
+      failedSources.push(source.name);
       console.error("Feed failed:", source.rss, error);
     }
   }
@@ -299,16 +403,22 @@ async function loadRSSFeed(category) {
 
   const hotCutoff = Math.max(1, Math.floor(cleaned.length * 0.3));
 
-  return cleaned.map((item, index) => ({
-    ...item,
-    isHot: index < hotCutoff
-  }));
+  return {
+    categoryId: category.id,
+    items: cleaned.map((item, index) => ({
+      ...item,
+      isHot: index < hotCutoff
+    })),
+    failedSources,
+    staleSources,
+    preserved: false
+  };
 }
 
 function mergeStories(categoryResults, previousKeys, isInitialLoad) {
   const nextStoryMap = new Map();
 
-  categoryResults.flat().forEach((item) => {
+  categoryResults.flatMap((result) => result.items).forEach((item) => {
     const key = normalizeTitle(item.title);
     const existing = nextStoryMap.get(key);
     const story = {
@@ -331,11 +441,29 @@ async function refreshDashboard({ isInitialLoad = false } = {}) {
   const previousKeys = new Set(
     globalStories.map((item) => normalizeTitle(item.title))
   );
+  const previousStoriesByCategory = new Map(
+    categories.map((category) => [
+      category.id,
+      globalStories.filter((item) => item.category === category.id)
+    ])
+  );
 
   try {
     const categoryResults = await Promise.all(
       categories.map((category) => loadRSSFeed(category))
     );
+
+    categoryResults.forEach((result) => {
+      const previousStories = previousStoriesByCategory.get(result.categoryId) || [];
+
+      if (result.items.length === 0 && previousStories.length > 0) {
+        result.items = previousStories.map((item) => ({
+          ...item,
+          isNew: false
+        }));
+        result.preserved = true;
+      }
+    });
 
     globalStories = mergeStories(
       categoryResults,
@@ -345,6 +473,7 @@ async function refreshDashboard({ isInitialLoad = false } = {}) {
 
     renderAllCategories();
     renderGlobalFeed();
+    renderRefreshStatuses(categoryResults, new Date());
   } catch (error) {
     console.error("Dashboard refresh failed:", error);
   } finally {
