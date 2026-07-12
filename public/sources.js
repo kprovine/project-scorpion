@@ -18,9 +18,9 @@ window.SOURCE_REGISTRY = {
         rss: "https://www.espn.com/espn/rss/news"
       },
       {
-        id: "reuters_sports",
-        name: "Reuters Sports",
-        rss: "https://www.reuters.com/rssFeed/sportsNews"
+        id: "guardian_sport",
+        name: "The Guardian Sport",
+        rss: "https://www.theguardian.com/sport/rss"
       }
     ]
   },
@@ -34,17 +34,17 @@ window.SOURCE_REGISTRY = {
       {
         id: "ars_technica",
         name: "Ars Technica",
-        rss: "https://feeds.arstechnica.com/arstechnica/index"
+        rss: "https://feeds.arstechnica.com/arstechnica/gaming"
       },
       {
         id: "ign",
         name: "IGN",
-        rss: "https://www.ign.com/rss/articles"
+        rss: "https://feeds.feedburner.com/ign/all"
       },
       {
-        id: "polygon",
-        name: "Polygon",
-        rss: "https://www.polygon.com/rss/index.xml"
+        id: "pc_gamer",
+        name: "PC Gamer",
+        rss: "https://www.pcgamer.com/rss/"
       }
     ]
   },
@@ -66,9 +66,9 @@ window.SOURCE_REGISTRY = {
         rss: "https://www.cnbc.com/id/100003114/device/rss/rss.html"
       },
       {
-        id: "reuters_business",
-        name: "Reuters Business",
-        rss: "https://www.reuters.com/rssFeed/businessNews"
+        id: "marketwatch",
+        name: "MarketWatch",
+        rss: "https://feeds.content.dowjones.io/public/rss/mw_topstories"
       }
     ]
   }
