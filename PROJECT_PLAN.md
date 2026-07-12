@@ -30,7 +30,7 @@ Goal: make the existing project understandable, consistent, and safe to change.
 
 Goal: make the current dashboard load and refresh stories dependably.
 
-- [ ] Repair the live refresh system.
+- [x] Repair the live refresh system.
 - [ ] Verify every configured RSS source.
 - [ ] Store readable source names and real publication times.
 - [ ] Preserve useful content when an individual source fails.

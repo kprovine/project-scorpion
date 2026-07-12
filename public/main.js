@@ -1,14 +1,15 @@
+const REFRESH_INTERVAL = 5 * 60 * 1000;
+
 let globalStories = [];
-let storyMap = new Map();
-let itemState = {};
+let isRefreshing = false;
 
 const categories = Object.entries(window.SOURCE_REGISTRY).map(([id, data]) => ({
   id,
   title: data.title,
-  sources: data.sources.map(s => s.rss)
+  sources: data.sources.map((source) => source.rss)
 }));
 
-// 1. helpers
+// 1. Dashboard and rendering
 
 function createDashboard() {
   const dashboard = document.getElementById("dashboard");
@@ -16,24 +17,20 @@ function createDashboard() {
   const globalCard = document.createElement("div");
   globalCard.className = "card";
   globalCard.id = "global";
-
   globalCard.innerHTML = `
     <h3>🔥 Top Stories</h3>
     <div class="feed"></div>
   `;
-
   dashboard.appendChild(globalCard);
 
-  categories.forEach(cat => {
+  categories.forEach((category) => {
     const card = document.createElement("div");
     card.className = "card";
-    card.id = cat.id;
-
+    card.id = category.id;
     card.innerHTML = `
-      <h3>${cat.title}</h3>
+      <h3>${category.title}</h3>
       <div class="feed"></div>
     `;
-
     dashboard.appendChild(card);
   });
 }
@@ -42,13 +39,7 @@ function createItem(text, index, link = null, isHot = false, isNew = false) {
   const div = document.createElement("div");
   div.className = "item";
 
-  // force reflow-friendly stagger timing
-  setTimeout(() => {
-    div.classList.add("show");
-  }, index * 40); // stagger effect
-
   const timestamp = new Date().toLocaleTimeString();
-
   const content = link
     ? `<a href="${link}" target="_blank" style="color:inherit; text-decoration:none;">${text}</a>`
     : text;
@@ -56,23 +47,47 @@ function createItem(text, index, link = null, isHot = false, isNew = false) {
   div.innerHTML = `
     <span class="rank">#${index + 1}</span>
     ${content}
-    ${isHot ? '<span class="hot">HOT</span>' : ''}
-    ${isNew ? '<span class="new">NEW</span>' : ''}
+    ${isHot ? '<span class="hot">HOT</span>' : ""}
+    ${isNew ? '<span class="new">NEW</span>' : ""}
     <div class="timestamp">${timestamp}</div>
   `;
+
+  requestAnimationFrame(() => {
+    div.classList.add("show");
+
+    if (isNew) {
+      div.classList.add("new-flash");
+      setTimeout(() => div.classList.remove("new-flash"), 4000);
+    }
+  });
 
   return div;
 }
 
+function renderItems(feed, items, createText) {
+  const fragment = document.createDocumentFragment();
+
+  items.forEach((item, index) => {
+    fragment.appendChild(
+      createItem(
+        createText(item),
+        index,
+        item.link,
+        item.isHot,
+        item.isNew
+      )
+    );
+  });
+
+  feed.replaceChildren(fragment);
+}
+
 function renderCategory(category, items) {
+  const feed = document.querySelector(`#${category.id} .feed`);
+  if (!feed) return;
 
-  const container = document.getElementById(category.id);
-  if (!container) return;
-
-  container.innerHTML = `<h3>${category.title}</h3>`;
-
-  if (!items || items.length === 0) {
-    container.innerHTML += `
+  if (items.length === 0) {
+    feed.innerHTML = `
       <div style="color:#64748b;padding:10px 0;">
         No stories
       </div>
@@ -80,221 +95,77 @@ function renderCategory(category, items) {
     return;
   }
 
-  items.forEach((item, index) => {
-
-    const el = createItem(
-      item.title,
-      index,
-      item.link,
-      item.isHot
-    );
-
-    container.appendChild(el);
-
-    setTimeout(() => {
-      el.classList.add("show");
-    }, index * 60);
-
-  });
+  renderItems(feed, items, (item) => item.title);
 }
 
-function renderAllCategories(allData) {
+function renderAllCategories() {
+  categories.forEach((category) => {
+    const items = globalStories
+      .filter((item) => item.category === category.id)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 15);
 
-  const grouped = {};
-
-  allData.forEach(item => {
-    if (!grouped[item.category]) {
-      grouped[item.category] = [];
-    }
-    grouped[item.category].push(item);
-  });
-
-  categories.forEach(cat => {
-    renderCategory(cat, grouped[cat.id] || []);
+    renderCategory(category, items);
   });
 }
 
 function renderGlobalFeed() {
-  const container = document.getElementById("global");
-  if (!container) return;
+  const feed = document.querySelector("#global .feed");
+  if (!feed) return;
 
-  // fade OUT old skeleton or old content (very subtle)
-  container.style.opacity = 0.6;
-
-  setTimeout(() => {
-    container.innerHTML = "<h3>🔥 Top Stories</h3>";
-
-    const top = globalStories
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 10);
-
-    top.forEach((item, index) => {
-
-      const id = `global:${normalizeTitle(item.title)}`;
-      const state = getItemState(id);
-
-      const isNew = (Date.now() - state.firstSeen) < 10 * 60 * 1000;
-
-      const el = createItem(
-        `[${item.category}] ${item.title}`,
-        index,
-        item.link,
-        index < 3,
-        isNew
-      );
-
-      container.appendChild(el);
-
-      setTimeout(() => el.classList.add("show"), index * 40);
-    });
-
-    // fade back in
-    container.style.opacity = 1;
-
-  }, 80);
-}
-
-function streamGlobalFeed() {
-  const container = document.getElementById("global");
-  if (!container) return;
-
-  const top = globalStories
+  const topStories = [...globalStories]
     .sort((a, b) => b.score - a.score)
-    .slice(0, 10);
+    .slice(0, 10)
+    .map((item, index) => ({
+      ...item,
+      isHot: index < 3
+    }));
 
-  top.forEach((item, index) => {
+  if (topStories.length === 0) {
+    feed.innerHTML = `
+      <div style="color:#64748b;padding:10px 0;">
+        No stories
+      </div>
+    `;
+    return;
+  }
 
-    const id = `global:${normalizeTitle(item.title)}`;
-    const state = getItemState(id);
-
-    if (state.renderedGlobal) return;
-    state.renderedGlobal = true;
-
-    const isNew =
-      (Date.now() - state.firstSeen) < 10 * 60 * 1000;
-
-    const el = createItem(
-      `[${item.category}] ${item.title}`,
-      index,
-      item.link,
-      index < 3,
-      isNew
-    );
-
-    el.style.opacity = "0";
-    el.style.transform = "translateY(-6px)";
-
-    const feed = container.querySelector(".feed");
-    feed.prepend(el);
-
-    requestAnimationFrame(() => {
-      el.classList.add("show");
-      el.classList.add("new-flash");
-    });
-
-    setTimeout(() => {
-      el.classList.remove("new-flash");
-    }, 4000);
-
-  });
+  renderItems(
+    feed,
+    topStories,
+    (item) => `[${item.category}] ${item.title}`
+  );
 }
 
-function streamCategories() {
+function renderSkeleton(cardId, itemCount = 6) {
+  const feed = document.querySelector(`#${cardId} .feed`);
+  if (!feed) return;
 
-  categories.forEach(cat => {
+  const fragment = document.createDocumentFragment();
 
-    const container = document.getElementById(cat.id);
-    if (!container) return;
-
-    const items = globalStories
-      .filter(i => i.category === cat.id)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 10);
-
-    items.forEach((item, index) => {
-
-      const id = `${cat.id}:${normalizeTitle(item.title)}`;
-      const state = getItemState(id);
-
-      if (state.renderedCategories[cat.id]) return;
-      state.renderedCategories[cat.id] = true;
-
-      const isNew =
-        (Date.now() - state.firstSeen) < 10 * 60 * 1000;
-
-      const el = createItem(
-        item.title,
-        index,
-        item.link,
-        item.isHot,
-        isNew
-      );
-
-      // IMPORTANT: start hidden
-      el.style.opacity = "0";
-      el.style.transform = "translateY(-6px)";
-
-      const feed = container.querySelector(".feed");
-      feed.prepend(el);
-
-      // animate in next frame
-      requestAnimationFrame(() => {
-        el.classList.add("show");
-      });
-
-    });
-
-  });
-}
-
-function renderSkeleton(categoryId) {
-  const container = document.getElementById(categoryId);
-  if (!container) return;
-
-  container.innerHTML = `<h3>Loading...</h3>`;
-
-  for (let i = 0; i < 6; i++) {
+  for (let index = 0; index < itemCount; index += 1) {
     const skeleton = document.createElement("div");
     skeleton.className = "item skeleton";
-
     skeleton.innerHTML = `
       <span class="rank">#</span>
       <div class="skeleton-line"></div>
       <div class="skeleton-line short"></div>
     `;
-
-    container.appendChild(skeleton);
+    fragment.appendChild(skeleton);
   }
+
+  feed.replaceChildren(fragment);
 }
 
-function renderTopStoriesSkeleton() {
-  let container = document.getElementById("global");
-
-  if (!container) {
-    const dashboard = document.getElementById("dashboard");
-    container = document.createElement("div");
-    container.className = "card";
-    container.id = "global";
-    container.innerHTML = "<h3>🔥 Top Stories</h3>";
-    dashboard.prepend(container);
-  }
-
-  container.innerHTML = "<h3>🔥 Top Stories</h3>";
-
-  for (let i = 0; i < 8; i++) {
-    const skeleton = document.createElement("div");
-    skeleton.className = "skeleton-item";
-    container.appendChild(skeleton);
-  }
+function renderLoadingState() {
+  renderSkeleton("global", 8);
+  categories.forEach((category) => renderSkeleton(category.id));
 }
 
-// 2. scoring + utils
+// 2. Scoring and normalization
 
 function scoreHeadline(title) {
-
   const lower = title.toLowerCase();
-
-  // 1. keyword signal
   const keywords = [
     "breaking", "win", "beats", "shock",
     "massive", "update", "deal", "record"
@@ -306,22 +177,18 @@ function scoreHeadline(title) {
     if (lower.includes(word)) score += 2;
   }
 
-  // 2. urgency signal (caps / intensity)
   if (title === title.toUpperCase() && title.length > 10) {
     score += 2;
   }
 
-  // 3. length signal (very short = often noise, medium = best)
   if (title.length > 40 && title.length < 120) {
     score += 2;
   }
 
-  // 4. entity signal (simple heuristic)
   if (/[A-Z][a-z]+/.test(title)) {
     score += 1;
   }
 
-  // 5. novelty bonus (random small jitter so feeds don’t feel static)
   score += Math.random() * 0.5;
 
   return score;
@@ -335,33 +202,19 @@ function normalizeTitle(title) {
     .trim();
 }
 
-function getItemState(id) {
-  if (!itemState[id]) {
-    itemState[id] = {
-      renderedGlobal: false,
-      renderedCategories: {},
-      firstSeen: Date.now()
-    };
-  }
-  return itemState[id];
-}
-
-// 3. data layer
+// 3. Feed loading and refresh
 
 async function loadRSSFeed(category) {
-
   const allItems = [];
 
   for (const feedUrl of category.sources) {
-
     const url = `/api/rss?url=${encodeURIComponent(feedUrl)}`;
 
     try {
-      const res = await fetch(url);
+      const response = await fetch(url);
+      if (!response.ok) continue;
 
-      if (!res.ok) continue;
-
-      const data = await res.json();
+      const data = await response.json();
       const xmlText = data.xml;
 
       if (!xmlText || typeof xmlText !== "string") continue;
@@ -369,11 +222,10 @@ async function loadRSSFeed(category) {
 
       const parser = new DOMParser();
       const xml = parser.parseFromString(xmlText, "text/xml");
-
       const items = Array.from(xml.getElementsByTagName("item"));
 
-      const cleaned = items
-        .map(item => {
+      const normalizedItems = items
+        .map((item) => {
           const title = item.querySelector("title")?.textContent || "";
           const link = item.querySelector("link")?.textContent || "";
 
@@ -387,72 +239,91 @@ async function loadRSSFeed(category) {
         })
         .filter((item) => item.title && item.link);
 
-      allItems.push(...cleaned);
-
-    } catch (err) {
-      console.error(`Feed failed:`, feedUrl, err);
+      allItems.push(...normalizedItems);
+    } catch (error) {
+      console.error("Feed failed:", feedUrl, error);
     }
   }
 
-  let cleaned = allItems;
+  const categoryStories = new Map();
 
-  cleaned.sort((a, b) => b.score - a.score);
-  cleaned = cleaned.slice(0, 15);
-
-  const hotCutoff = Math.max(1, Math.floor(cleaned.length * 0.3));
-
-  cleaned = cleaned.map((item, index) => ({
-    ...item,
-    isHot: index < hotCutoff
-  }));
-
-  // -------------------------
-  // DEDUPE 
-  // -------------------------
-
-  cleaned.forEach(item => {
-
+  allItems.forEach((item) => {
     const key = normalizeTitle(item.title);
+    const existing = categoryStories.get(key);
 
-    if (!storyMap.has(key)) {
-      storyMap.set(key, item);
-    } else {
-      const existing = storyMap.get(key);
-
-      if (item.score > existing.score) {
-        storyMap.set(key, {
-          ...existing,
-          ...item,
-          score: item.score
-        });
-      }
+    if (!existing || item.score > existing.score) {
+      categoryStories.set(key, item);
     }
   });
 
-  return cleaned;
+  const cleaned = Array.from(categoryStories.values())
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 15);
+
+  const hotCutoff = Math.max(1, Math.floor(cleaned.length * 0.3));
+
+  return cleaned.map((item, index) => ({
+    ...item,
+    isHot: index < hotCutoff
+  }));
 }
 
-// 4. boot
+function mergeStories(categoryResults, previousKeys, isInitialLoad) {
+  const nextStoryMap = new Map();
+
+  categoryResults.flat().forEach((item) => {
+    const key = normalizeTitle(item.title);
+    const existing = nextStoryMap.get(key);
+    const story = {
+      ...item,
+      isNew: !isInitialLoad && !previousKeys.has(key)
+    };
+
+    if (!existing || story.score > existing.score) {
+      nextStoryMap.set(key, story);
+    }
+  });
+
+  return Array.from(nextStoryMap.values());
+}
+
+async function refreshDashboard({ isInitialLoad = false } = {}) {
+  if (isRefreshing) return;
+
+  isRefreshing = true;
+  const previousKeys = new Set(
+    globalStories.map((item) => normalizeTitle(item.title))
+  );
+
+  try {
+    const categoryResults = await Promise.all(
+      categories.map((category) => loadRSSFeed(category))
+    );
+
+    globalStories = mergeStories(
+      categoryResults,
+      previousKeys,
+      isInitialLoad
+    );
+
+    renderAllCategories();
+    renderGlobalFeed();
+  } catch (error) {
+    console.error("Dashboard refresh failed:", error);
+  } finally {
+    isRefreshing = false;
+  }
+}
+
+// 4. Boot
 
 document.addEventListener("DOMContentLoaded", async () => {
-
-  storyMap = new Map();
-  globalStories = [];
-
   createDashboard();
+  renderLoadingState();
 
-  renderTopStoriesSkeleton?.();
-  categories.forEach(cat => renderSkeleton(cat.id));
-
-  await Promise.all(categories.map(loadRSSFeed));
-
-  globalStories = Array.from(storyMap.values());
-
-  renderAllCategories(globalStories);
-  renderGlobalFeed();
+  await refreshDashboard({ isInitialLoad: true });
 
   setInterval(() => {
-    streamGlobalFeed();
-    streamCategories();
-  }, 60000);
+    refreshDashboard();
+  }, REFRESH_INTERVAL);
 });
