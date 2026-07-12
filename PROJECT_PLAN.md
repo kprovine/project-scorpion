@@ -40,7 +40,7 @@ Goal: make the current dashboard load and refresh stories dependably.
 
 Goal: make Top Stories genuinely useful instead of mechanically ranked.
 
-- [ ] Replace random score variation with deterministic scoring.
+- [x] Replace random score variation with deterministic scoring.
 - [ ] Add recency weighting.
 - [ ] Add source-quality weighting.
 - [ ] Improve headline deduplication.

@@ -102,7 +102,7 @@ function renderAllCategories() {
   categories.forEach((category) => {
     const items = globalStories
       .filter((item) => item.category === category.id)
-      .sort((a, b) => b.score - a.score)
+      .sort(compareStories)
       .slice(0, 15);
 
     renderCategory(category, items);
@@ -114,7 +114,7 @@ function renderGlobalFeed() {
   if (!feed) return;
 
   const topStories = [...globalStories]
-    .sort((a, b) => b.score - a.score)
+    .sort(compareStories)
     .slice(0, 10)
     .map((item, index) => ({
       ...item,
@@ -274,8 +274,6 @@ function scoreHeadline(title) {
     score += 1;
   }
 
-  score += Math.random() * 0.5;
-
   return score;
 }
 
@@ -285,6 +283,15 @@ function normalizeTitle(title) {
     .replace(/[^a-z0-9\s]/g, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function compareStories(firstStory, secondStory) {
+  const scoreDifference = secondStory.score - firstStory.score;
+  if (scoreDifference !== 0) return scoreDifference;
+
+  return normalizeTitle(firstStory.title).localeCompare(
+    normalizeTitle(secondStory.title)
+  );
 }
 
 function getElementText(item, tagNames) {
@@ -398,7 +405,7 @@ async function loadRSSFeed(category) {
   });
 
   const cleaned = Array.from(categoryStories.values())
-    .sort((a, b) => b.score - a.score)
+    .sort(compareStories)
     .slice(0, 15);
 
   const hotCutoff = Math.max(1, Math.floor(cleaned.length * 0.3));
