@@ -32,7 +32,7 @@ Goal: make the current dashboard load and refresh stories dependably.
 
 - [x] Repair the live refresh system.
 - [x] Verify every configured RSS source.
-- [ ] Store readable source names and real publication times.
+- [x] Store readable source names and real publication times.
 - [ ] Preserve useful content when an individual source fails.
 - [ ] Verify loading, refreshing, failure handling, and mobile behavior.
 

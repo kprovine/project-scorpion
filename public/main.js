@@ -6,7 +6,7 @@ let isRefreshing = false;
 const categories = Object.entries(window.SOURCE_REGISTRY).map(([id, data]) => ({
   id,
   title: data.title,
-  sources: data.sources.map((source) => source.rss)
+  sources: data.sources
 }));
 
 // 1. Dashboard and rendering
@@ -35,27 +35,27 @@ function createDashboard() {
   });
 }
 
-function createItem(text, index, link = null, isHot = false, isNew = false) {
+function createItem(text, index, item) {
   const div = document.createElement("div");
   div.className = "item";
 
-  const timestamp = new Date().toLocaleTimeString();
-  const content = link
-    ? `<a href="${link}" target="_blank" style="color:inherit; text-decoration:none;">${text}</a>`
+  const content = item.link
+    ? `<a href="${item.link}" target="_blank" style="color:inherit; text-decoration:none;">${text}</a>`
     : text;
+  const metadata = `${item.sourceName} • ${formatPublishedAt(item.publishedAt)}`;
 
   div.innerHTML = `
     <span class="rank">#${index + 1}</span>
     ${content}
-    ${isHot ? '<span class="hot">HOT</span>' : ""}
-    ${isNew ? '<span class="new">NEW</span>' : ""}
-    <div class="timestamp">${timestamp}</div>
+    ${item.isHot ? '<span class="hot">HOT</span>' : ""}
+    ${item.isNew ? '<span class="new">NEW</span>' : ""}
+    <div class="timestamp">${metadata}</div>
   `;
 
   requestAnimationFrame(() => {
     div.classList.add("show");
 
-    if (isNew) {
+    if (item.isNew) {
       div.classList.add("new-flash");
       setTimeout(() => div.classList.remove("new-flash"), 4000);
     }
@@ -72,9 +72,7 @@ function renderItems(feed, items, createText) {
       createItem(
         createText(item),
         index,
-        item.link,
-        item.isHot,
-        item.isNew
+        item
       )
     );
   });
@@ -202,13 +200,50 @@ function normalizeTitle(title) {
     .trim();
 }
 
+function getElementText(item, tagNames) {
+  for (const tagName of tagNames) {
+    const value = item.getElementsByTagName(tagName)[0]?.textContent?.trim();
+    if (value) return value;
+  }
+
+  return null;
+}
+
+function parsePublishedAt(item) {
+  const dateText = getElementText(item, [
+    "pubDate",
+    "dc:date",
+    "published",
+    "updated"
+  ]);
+
+  if (!dateText) return null;
+
+  const timestamp = Date.parse(dateText);
+  return Number.isNaN(timestamp) ? null : new Date(timestamp).toISOString();
+}
+
+function formatPublishedAt(publishedAt) {
+  if (!publishedAt) return "Publication time unavailable";
+
+  const date = new Date(publishedAt);
+  if (Number.isNaN(date.getTime())) return "Publication time unavailable";
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(date);
+}
+
 // 3. Feed loading and refresh
 
 async function loadRSSFeed(category) {
   const allItems = [];
 
-  for (const feedUrl of category.sources) {
-    const url = `/api/rss?url=${encodeURIComponent(feedUrl)}`;
+  for (const source of category.sources) {
+    const url = `/api/rss?url=${encodeURIComponent(source.rss)}`;
 
     try {
       const response = await fetch(url);
@@ -234,14 +269,16 @@ async function loadRSSFeed(category) {
             link,
             score: scoreHeadline(title),
             category: category.id,
-            source: feedUrl
+            sourceId: source.id,
+            sourceName: source.name,
+            publishedAt: parsePublishedAt(item)
           };
         })
         .filter((item) => item.title && item.link);
 
       allItems.push(...normalizedItems);
     } catch (error) {
-      console.error("Feed failed:", feedUrl, error);
+      console.error("Feed failed:", source.rss, error);
     }
   }
 
