@@ -277,6 +277,23 @@ function scoreHeadline(title) {
   return score;
 }
 
+function calculateRecencyBoost(publishedAt, referenceTime = Date.now()) {
+  if (!publishedAt) return 0;
+
+  const publishedTime = new Date(publishedAt).getTime();
+  if (Number.isNaN(publishedTime)) return 0;
+
+  const ageInHours = Math.max(
+    0,
+    (referenceTime - publishedTime) / (60 * 60 * 1000)
+  );
+
+  if (ageInHours >= 72) return 0;
+
+  const boost = 3 * (1 - ageInHours / 72);
+  return Number(boost.toFixed(2));
+}
+
 function normalizeTitle(title) {
   return title
     .toLowerCase()
@@ -333,7 +350,7 @@ function formatPublishedAt(publishedAt) {
 
 // 3. Feed loading and refresh
 
-async function loadRSSFeed(category) {
+async function loadRSSFeed(category, scoringTime) {
   const allItems = [];
   const failedSources = [];
   const staleSources = [];
@@ -364,15 +381,23 @@ async function loadRSSFeed(category) {
         .map((item) => {
           const title = item.querySelector("title")?.textContent || "";
           const link = item.querySelector("link")?.textContent || "";
+          const publishedAt = parsePublishedAt(item);
+          const baseScore = scoreHeadline(title);
+          const recencyBoost = calculateRecencyBoost(
+            publishedAt,
+            scoringTime
+          );
 
           return {
             title,
             link,
-            score: scoreHeadline(title),
+            baseScore,
+            recencyBoost,
+            score: baseScore + recencyBoost,
             category: category.id,
             sourceId: source.id,
             sourceName: source.name,
-            publishedAt: parsePublishedAt(item)
+            publishedAt
           };
         })
         .filter((item) => item.title && item.link);
@@ -456,8 +481,9 @@ async function refreshDashboard({ isInitialLoad = false } = {}) {
   );
 
   try {
+    const scoringTime = Date.now();
     const categoryResults = await Promise.all(
-      categories.map((category) => loadRSSFeed(category))
+      categories.map((category) => loadRSSFeed(category, scoringTime))
     );
 
     categoryResults.forEach((result) => {
