@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Local environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Vercel's local project settings
+.vercel/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor and operating-system files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Test and build output
+coverage/
+dist/

@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Project Scorpion</title>
 
- <style>
+  <style>
   * {
     box-sizing: border-box;
   }
@@ -88,22 +88,20 @@
      ITEMS
   ========================= */
   .item {
-  padding: 12px 0;
-  border-bottom: 1px solid #1e293b;
-  line-height: 1.4;
-  cursor: pointer;
-
-  opacity: 0;
-  transform: translateY(6px);
-
-  transition: opacity 0.25s ease, transform 0.25s ease;
-  will-change: opacity, transform;
-}
+    padding: 12px 0;
+    border-bottom: 1px solid #1e293b;
+    line-height: 1.4;
+    cursor: pointer;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    will-change: opacity, transform;
+  }
 
   .item.show {
-  opacity: 1;
-  transform: translateY(0);
-}
+    opacity: 1;
+    transform: translateY(0);
+  }
 
   .item:last-child {
     border-bottom: none;
@@ -129,12 +127,12 @@
   }
 
   .new {
-  color: #ef4444;
-  font-size: 11px;
-  font-weight: 700;
-  margin-left: 8px;
-  letter-spacing: 0.5px;
-}
+    color: #ef4444;
+    font-size: 11px;
+    font-weight: 700;
+    margin-left: 8px;
+    letter-spacing: 0.5px;
+  }
 
   .item a {
     display: inline-block;
@@ -149,10 +147,10 @@
   }
 
   .item.new-flash {
-  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.35),
-              0 0 18px rgba(239, 68, 68, 0.25);
-  background: rgba(239, 68, 68, 0.06);
-}
+    box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.35),
+                0 0 18px rgba(239, 68, 68, 0.25);
+    background: rgba(239, 68, 68, 0.06);
+  }
 
   /* =========================
      SKELETON LOADING
@@ -267,23 +265,23 @@
   }
 }
 
-</style>
+  </style>
 
 </head>
 
 <body>
 
   <header>
-  <div class="logo">Project Scorpion</div>
-  <div class="menu">
-  Dashboard MVP <span class="live-indicator">● LIVE</span>
-</div>
-</header>
+    <div class="logo">Project Scorpion</div>
+    <div class="menu">
+      Dashboard MVP <span class="live-indicator">● LIVE</span>
+    </div>
+  </header>
 
   <div class="grid" id="dashboard"></div>
 
-<script src="sources.js" defer></script>
-<script src="main.js" defer></script>
+  <script src="sources.js" defer></script>
+  <script src="main.js" defer></script>
 
 
 </body>

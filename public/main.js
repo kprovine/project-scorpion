@@ -1,8 +1,5 @@
-
 let globalStories = [];
-
 let storyMap = new Map();
-
 let itemState = {};
 
 const categories = Object.entries(window.SOURCE_REGISTRY).map(([id, data]) => ({
@@ -41,8 +38,7 @@ function createDashboard() {
   });
 }
 
-function createItem(text, index, link = null, score = 0, isHot = false, isNew = false) {
-
+function createItem(text, index, link = null, isHot = false, isNew = false) {
   const div = document.createElement("div");
   div.className = "item";
 
@@ -57,7 +53,7 @@ function createItem(text, index, link = null, score = 0, isHot = false, isNew = 
     ? `<a href="${link}" target="_blank" style="color:inherit; text-decoration:none;">${text}</a>`
     : text;
 
-    div.innerHTML = `
+  div.innerHTML = `
     <span class="rank">#${index + 1}</span>
     ${content}
     ${isHot ? '<span class="hot">HOT</span>' : ''}
@@ -90,7 +86,6 @@ function renderCategory(category, items) {
       item.title,
       index,
       item.link,
-      item.score,
       item.isHot
     );
 
@@ -144,7 +139,6 @@ function renderGlobalFeed() {
         `[${item.category}] ${item.title}`,
         index,
         item.link,
-        item.score,
         index < 3,
         isNew
       );
@@ -168,8 +162,6 @@ function streamGlobalFeed() {
     .sort((a, b) => b.score - a.score)
     .slice(0, 10);
 
-  const header = container.querySelector("h3");
-
   top.forEach((item, index) => {
 
     const id = `global:${normalizeTitle(item.title)}`;
@@ -185,7 +177,6 @@ function streamGlobalFeed() {
       `[${item.category}] ${item.title}`,
       index,
       item.link,
-      item.score,
       index < 3,
       isNew
     );
@@ -194,7 +185,7 @@ function streamGlobalFeed() {
     el.style.transform = "translateY(-6px)";
 
     const feed = container.querySelector(".feed");
-feed.prepend(el);
+    feed.prepend(el);
 
     requestAnimationFrame(() => {
       el.classList.add("show");
@@ -213,10 +204,7 @@ function streamCategories() {
   categories.forEach(cat => {
 
     const container = document.getElementById(cat.id);
-    const feed = container.querySelector(".feed");
     if (!container) return;
-
-    const header = container.querySelector("h3");
 
     const items = globalStories
       .filter(i => i.category === cat.id)
@@ -238,7 +226,6 @@ function streamCategories() {
         item.title,
         index,
         item.link,
-        item.score,
         item.isHot,
         isNew
       );
@@ -248,7 +235,7 @@ function streamCategories() {
       el.style.transform = "translateY(-6px)";
 
       const feed = container.querySelector(".feed");
-feed.prepend(el);
+      feed.prepend(el);
 
       // animate in next frame
       requestAnimationFrame(() => {
@@ -395,10 +382,10 @@ async function loadRSSFeed(category) {
             link,
             score: scoreHeadline(title),
             category: category.id,
-            source: feedUrl   
+            source: feedUrl
           };
         })
-        .filter(i => i.title && i.link);
+        .filter((item) => item.title && item.link);
 
       allItems.push(...cleaned);
 
