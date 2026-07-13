@@ -52,7 +52,7 @@ Goal: make Top Stories genuinely useful instead of mechanically ranked.
 Goal: make the dashboard orchestrate cards without knowing which providers or data models they use.
 
 - [x] Make cards the top-level configuration.
-- [ ] Add provider dispatch and extract the RSS provider.
+- [x] Add provider dispatch and extract the RSS provider.
 - [ ] Add card loading coordination and card-owned results.
 - [ ] Add renderer dispatch for story-list cards.
 - [ ] Decouple Top Stories from all-card state.

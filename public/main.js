@@ -485,74 +485,93 @@ function formatPublishedAt(publishedAt) {
 
 // 3. Feed loading and refresh
 
+async function loadRSSProvider(provider, card, scoringTime) {
+  const url = `/api/rss?url=${encodeURIComponent(provider.config.url)}`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      return { items: [], failed: true, stale: false };
+    }
+
+    const data = await response.json();
+    const xmlText = data.xml;
+
+    if (!xmlText || typeof xmlText !== "string" || !xmlText.includes("<item")) {
+      return { items: [], failed: true, stale: false };
+    }
+
+    const parser = new DOMParser();
+    const xml = parser.parseFromString(xmlText, "text/xml");
+    const items = Array.from(xml.getElementsByTagName("item"));
+    const normalizedItems = items
+      .map((item) => {
+        const title = item.querySelector("title")?.textContent || "";
+        const link = item.querySelector("link")?.textContent || "";
+        const publishedAt = parsePublishedAt(item);
+        const baseScore = scoreHeadline(title);
+        const recencyBoost = calculateRecencyBoost(publishedAt, scoringTime);
+        const sourceQualityBoost = getSourceQualityBoost(provider);
+
+        return {
+          title,
+          link,
+          baseScore,
+          recencyBoost,
+          sourceQualityBoost,
+          score: baseScore + recencyBoost + sourceQualityBoost,
+          category: card.id,
+          sourceId: provider.id,
+          sourceName: provider.name,
+          publishedAt
+        };
+      })
+      .filter((item) => item.title && item.link);
+
+    return {
+      items: normalizedItems,
+      failed: normalizedItems.length === 0,
+      stale: normalizedItems.length > 0 && Boolean(data.stale)
+    };
+  } catch (error) {
+    console.error("RSS provider failed:", provider.config.url, error);
+    return { items: [], failed: true, stale: false };
+  }
+}
+
+const providerLoaders = {
+  rss: loadRSSProvider
+};
+
+async function loadProvider(provider, card, scoringTime) {
+  const loader = providerLoaders[provider.type];
+
+  if (!loader) {
+    console.error(`Unsupported provider type: ${provider.type}`);
+    return { items: [], failed: true, stale: false };
+  }
+
+  return loader(provider, card, scoringTime);
+}
+
 async function loadRSSFeed(card, scoringTime) {
   const allItems = [];
   const failedSources = [];
   const staleSources = [];
 
   for (const provider of card.providers) {
-    const url = `/api/rss?url=${encodeURIComponent(provider.config.url)}`;
+    const result = await loadProvider(provider, card, scoringTime);
 
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        failedSources.push(provider.name);
-        continue;
-      }
-
-      const data = await response.json();
-      const xmlText = data.xml;
-
-      if (!xmlText || typeof xmlText !== "string" || !xmlText.includes("<item")) {
-        failedSources.push(provider.name);
-        continue;
-      }
-
-      const parser = new DOMParser();
-      const xml = parser.parseFromString(xmlText, "text/xml");
-      const items = Array.from(xml.getElementsByTagName("item"));
-
-      const normalizedItems = items
-        .map((item) => {
-          const title = item.querySelector("title")?.textContent || "";
-          const link = item.querySelector("link")?.textContent || "";
-          const publishedAt = parsePublishedAt(item);
-          const baseScore = scoreHeadline(title);
-          const recencyBoost = calculateRecencyBoost(
-            publishedAt,
-            scoringTime
-          );
-          const sourceQualityBoost = getSourceQualityBoost(provider);
-
-          return {
-            title,
-            link,
-            baseScore,
-            recencyBoost,
-            sourceQualityBoost,
-            score: baseScore + recencyBoost + sourceQualityBoost,
-            category: card.id,
-            sourceId: provider.id,
-            sourceName: provider.name,
-            publishedAt
-          };
-        })
-        .filter((item) => item.title && item.link);
-
-      if (normalizedItems.length === 0) {
-        failedSources.push(provider.name);
-        continue;
-      }
-
-      if (data.stale) {
-        staleSources.push(provider.name);
-      }
-
-      allItems.push(...normalizedItems);
-    } catch (error) {
+    if (result.failed) {
       failedSources.push(provider.name);
-      console.error("Feed failed:", provider.config.url, error);
+      continue;
     }
+
+    if (result.stale) {
+      staleSources.push(provider.name);
+    }
+
+    allItems.push(...result.items);
   }
 
   const cleaned = deduplicateStories(allItems)
