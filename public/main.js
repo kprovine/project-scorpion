@@ -1,4 +1,9 @@
 const REFRESH_INTERVAL = 5 * 60 * 1000;
+const HEADLINE_STOP_WORDS = new Set([
+  "a", "an", "and", "are", "as", "at", "be", "by", "for", "from",
+  "has", "have", "in", "is", "it", "of", "on", "or", "that", "the",
+  "this", "to", "was", "were", "will", "with"
+]);
 
 let globalStories = [];
 let isRefreshing = false;
@@ -309,6 +314,83 @@ function normalizeTitle(title) {
     .trim();
 }
 
+function getHeadlineTokens(title) {
+  return new Set(
+    normalizeTitle(title)
+      .split(" ")
+      .filter((word) => word.length > 2 && !HEADLINE_STOP_WORDS.has(word))
+  );
+}
+
+function areSimilarHeadlines(firstTitle, secondTitle) {
+  const firstNormalized = normalizeTitle(firstTitle);
+  const secondNormalized = normalizeTitle(secondTitle);
+
+  if (firstNormalized === secondNormalized) return true;
+
+  const firstTokens = getHeadlineTokens(firstTitle);
+  const secondTokens = getHeadlineTokens(secondTitle);
+  const smallerTokenCount = Math.min(firstTokens.size, secondTokens.size);
+
+  if (smallerTokenCount < 4) return false;
+
+  const sharedTokenCount = [...firstTokens]
+    .filter((token) => secondTokens.has(token))
+    .length;
+
+  if (sharedTokenCount < 3) return false;
+
+  const unionTokenCount = new Set([...firstTokens, ...secondTokens]).size;
+  const jaccardSimilarity = sharedTokenCount / unionTokenCount;
+  const containmentSimilarity = sharedTokenCount / smallerTokenCount;
+
+  return jaccardSimilarity >= 0.6 || (
+    sharedTokenCount >= 4 && containmentSimilarity >= 0.75
+  );
+}
+
+function mergeDuplicateMetadata(primaryStory, duplicateStory) {
+  const sourceNames = new Set([
+    ...(primaryStory.sourceNames || [primaryStory.sourceName]),
+    ...(duplicateStory.sourceNames || [duplicateStory.sourceName])
+  ]);
+
+  return {
+    ...primaryStory,
+    sourceNames: Array.from(sourceNames),
+    sourceCount: sourceNames.size,
+    duplicateCount: (primaryStory.duplicateCount || 1)
+      + (duplicateStory.duplicateCount || 1)
+  };
+}
+
+function deduplicateStories(stories) {
+  const deduplicated = [];
+
+  [...stories].sort(compareStories).forEach((story) => {
+    const duplicateIndex = deduplicated.findIndex((existingStory) =>
+      areSimilarHeadlines(existingStory.title, story.title)
+    );
+
+    if (duplicateIndex === -1) {
+      deduplicated.push({
+        ...story,
+        sourceNames: story.sourceNames || [story.sourceName],
+        sourceCount: story.sourceCount || 1,
+        duplicateCount: story.duplicateCount || 1
+      });
+      return;
+    }
+
+    deduplicated[duplicateIndex] = mergeDuplicateMetadata(
+      deduplicated[duplicateIndex],
+      story
+    );
+  });
+
+  return deduplicated;
+}
+
 function compareStories(firstStory, secondStory) {
   const scoreDifference = secondStory.score - firstStory.score;
   if (scoreDifference !== 0) return scoreDifference;
@@ -427,19 +509,7 @@ async function loadRSSFeed(category, scoringTime) {
     }
   }
 
-  const categoryStories = new Map();
-
-  allItems.forEach((item) => {
-    const key = normalizeTitle(item.title);
-    const existing = categoryStories.get(key);
-
-    if (!existing || item.score > existing.score) {
-      categoryStories.set(key, item);
-    }
-  });
-
-  const cleaned = Array.from(categoryStories.values())
-    .sort(compareStories)
+  const cleaned = deduplicateStories(allItems)
     .slice(0, 15);
 
   const hotCutoff = Math.max(1, Math.floor(cleaned.length * 0.3));
@@ -457,22 +527,16 @@ async function loadRSSFeed(category, scoringTime) {
 }
 
 function mergeStories(categoryResults, previousKeys, isInitialLoad) {
-  const nextStoryMap = new Map();
-
-  categoryResults.flatMap((result) => result.items).forEach((item) => {
+  return deduplicateStories(
+    categoryResults.flatMap((result) => result.items)
+  ).map((item) => {
     const key = normalizeTitle(item.title);
-    const existing = nextStoryMap.get(key);
-    const story = {
+
+    return {
       ...item,
       isNew: !isInitialLoad && !previousKeys.has(key)
     };
-
-    if (!existing || story.score > existing.score) {
-      nextStoryMap.set(key, story);
-    }
   });
-
-  return Array.from(nextStoryMap.values());
 }
 
 async function refreshDashboard({ isInitialLoad = false } = {}) {
