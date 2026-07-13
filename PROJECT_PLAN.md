@@ -56,7 +56,7 @@ Goal: make the dashboard orchestrate cards without knowing which providers or da
 - [x] Add card loading coordination and card-owned results.
 - [x] Add renderer dispatch for story-list cards.
 - [x] Decouple Top Stories from all-card state.
-- [ ] Verify the complete behavior-preserving refactor.
+- [x] Verify the complete behavior-preserving refactor.
 
 ## Phase 3 — More useful cards
 
