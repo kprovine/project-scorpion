@@ -6,6 +6,7 @@ const HEADLINE_STOP_WORDS = new Set([
 ]);
 
 let globalStories = [];
+const cardResultsById = new Map();
 let isRefreshing = false;
 
 const cards = Object.entries(window.CARD_REGISTRY).map(([id, data]) => ({
@@ -108,8 +109,7 @@ function renderCategory(card, items) {
 
 function renderAllCategories() {
   cards.forEach((card) => {
-    const items = globalStories
-      .filter((item) => item.category === card.id)
+    const items = [...(cardResultsById.get(card.id)?.items || [])]
       .sort(compareStories)
       .slice(0, card.maxItems);
 
@@ -182,19 +182,19 @@ function renderFeedStatus(cardId, message, state = "healthy") {
   status.className = `feed-status ${state}`;
 }
 
-function renderRefreshStatuses(categoryResults, updatedAt) {
+function renderRefreshStatuses(cardResults, updatedAt) {
   let unavailableSourceCount = 0;
   let cachedSourceCount = 0;
   let preservedCategoryCount = 0;
 
-  categoryResults.forEach((result) => {
+  cardResults.forEach((result) => {
     unavailableSourceCount += result.failedSources.length;
     cachedSourceCount += result.staleSources.length;
     if (result.preserved) preservedCategoryCount += 1;
 
     if (result.preserved) {
       renderFeedStatus(
-        result.categoryId,
+        result.cardId,
         "Update failed • Showing previous stories",
         "error"
       );
@@ -203,7 +203,7 @@ function renderRefreshStatuses(categoryResults, updatedAt) {
 
     if (result.items.length === 0) {
       renderFeedStatus(
-        result.categoryId,
+        result.cardId,
         "Feed unavailable • Retrying automatically",
         "error"
       );
@@ -223,7 +223,7 @@ function renderRefreshStatuses(categoryResults, updatedAt) {
       : `Updated ${formatUpdatedAt(updatedAt)}`;
 
     renderFeedStatus(
-      result.categoryId,
+      result.cardId,
       message,
       details.length > 0 ? "degraded" : "healthy"
     );
@@ -554,7 +554,7 @@ async function loadProvider(provider, card, scoringTime) {
   return loader(provider, card, scoringTime);
 }
 
-async function loadRSSFeed(card, scoringTime) {
+async function loadCard(card, scoringTime) {
   const allItems = [];
   const failedSources = [];
   const staleSources = [];
@@ -578,7 +578,7 @@ async function loadRSSFeed(card, scoringTime) {
     .slice(0, card.maxItems);
 
   return {
-    categoryId: card.id,
+    cardId: card.id,
     items: cleaned,
     failedSources,
     staleSources,
@@ -586,9 +586,9 @@ async function loadRSSFeed(card, scoringTime) {
   };
 }
 
-function mergeStories(categoryResults, previousKeys, isInitialLoad) {
+function mergeStories(cardResults, previousKeys, isInitialLoad) {
   const deduplicatedStories = deduplicateStories(
-    categoryResults.flatMap((result) => result.items)
+    cardResults.flatMap((result) => result.items)
   );
 
   return applyHotDetection(deduplicatedStories).map((item) => {
@@ -608,21 +608,15 @@ async function refreshDashboard({ isInitialLoad = false } = {}) {
   const previousKeys = new Set(
     globalStories.map((item) => normalizeTitle(item.title))
   );
-  const previousStoriesByCategory = new Map(
-    cards.map((card) => [
-      card.id,
-      globalStories.filter((item) => item.category === card.id)
-    ])
-  );
 
   try {
     const scoringTime = Date.now();
-    const categoryResults = await Promise.all(
-      cards.map((card) => loadRSSFeed(card, scoringTime))
+    const cardResults = await Promise.all(
+      cards.map((card) => loadCard(card, scoringTime))
     );
 
-    categoryResults.forEach((result) => {
-      const previousStories = previousStoriesByCategory.get(result.categoryId) || [];
+    cardResults.forEach((result) => {
+      const previousStories = cardResultsById.get(result.cardId)?.items || [];
 
       if (result.items.length === 0 && previousStories.length > 0) {
         result.items = previousStories.map((item) => ({
@@ -634,14 +628,21 @@ async function refreshDashboard({ isInitialLoad = false } = {}) {
     });
 
     globalStories = mergeStories(
-      categoryResults,
+      cardResults,
       previousKeys,
       isInitialLoad
     );
 
+    cardResults.forEach((result) => {
+      cardResultsById.set(result.cardId, {
+        ...result,
+        items: globalStories.filter((item) => item.category === result.cardId)
+      });
+    });
+
     renderAllCategories();
     renderGlobalFeed();
-    renderRefreshStatuses(categoryResults, new Date());
+    renderRefreshStatuses(cardResults, new Date());
   } catch (error) {
     console.error("Dashboard refresh failed:", error);
   } finally {

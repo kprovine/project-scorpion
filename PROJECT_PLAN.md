@@ -53,7 +53,7 @@ Goal: make the dashboard orchestrate cards without knowing which providers or da
 
 - [x] Make cards the top-level configuration.
 - [x] Add provider dispatch and extract the RSS provider.
-- [ ] Add card loading coordination and card-owned results.
+- [x] Add card loading coordination and card-owned results.
 - [ ] Add renderer dispatch for story-list cards.
 - [ ] Decouple Top Stories from all-card state.
 - [ ] Verify the complete behavior-preserving refactor.
