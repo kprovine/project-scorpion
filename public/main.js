@@ -5,7 +5,7 @@ const HEADLINE_STOP_WORDS = new Set([
   "this", "to", "was", "were", "will", "with"
 ]);
 
-let globalStories = [];
+let topStories = [];
 const cardResultsById = new Map();
 let isRefreshing = false;
 
@@ -17,6 +17,11 @@ const cards = Object.entries(window.CARD_REGISTRY).map(([id, data]) => ({
   maxItems: data.maxItems,
   providers: data.providers
 }));
+const topStoryCardIds = new Set(
+  cards
+    .filter((card) => card.contributesToTopStories)
+    .map((card) => card.id)
+);
 
 // 1. Dashboard and rendering
 
@@ -146,11 +151,11 @@ function renderGlobalFeed() {
   const feed = document.querySelector("#global .feed");
   if (!feed) return;
 
-  const topStories = [...globalStories]
+  const rankedTopStories = [...topStories]
     .sort(compareStories)
     .slice(0, 10);
 
-  if (topStories.length === 0) {
+  if (rankedTopStories.length === 0) {
     feed.innerHTML = `
       <div style="color:#64748b;padding:10px 0;">
         No stories
@@ -161,7 +166,7 @@ function renderGlobalFeed() {
 
   renderItems(
     feed,
-    topStories,
+    rankedTopStories,
     (item) => `[${item.category}] ${item.title}`
   );
 }
@@ -213,9 +218,11 @@ function renderRefreshStatuses(cardResults, updatedAt) {
   let preservedCategoryCount = 0;
 
   cardResults.forEach((result) => {
-    unavailableSourceCount += result.failedSources.length;
-    cachedSourceCount += result.staleSources.length;
-    if (result.preserved) preservedCategoryCount += 1;
+    if (topStoryCardIds.has(result.cardId)) {
+      unavailableSourceCount += result.failedSources.length;
+      cachedSourceCount += result.staleSources.length;
+      if (result.preserved) preservedCategoryCount += 1;
+    }
 
     if (result.preserved) {
       renderFeedStatus(
@@ -611,7 +618,7 @@ async function loadCard(card, scoringTime) {
   };
 }
 
-function mergeStories(cardResults, previousKeys, isInitialLoad) {
+function buildTopStories(cardResults, previousKeys, isInitialLoad) {
   const deduplicatedStories = deduplicateStories(
     cardResults.flatMap((result) => result.items)
   );
@@ -631,7 +638,7 @@ async function refreshDashboard({ isInitialLoad = false } = {}) {
 
   isRefreshing = true;
   const previousKeys = new Set(
-    globalStories.map((item) => normalizeTitle(item.title))
+    topStories.map((item) => normalizeTitle(item.title))
   );
 
   try {
@@ -652,8 +659,11 @@ async function refreshDashboard({ isInitialLoad = false } = {}) {
       }
     });
 
-    globalStories = mergeStories(
-      cardResults,
+    const topStoryCardResults = cardResults.filter((result) =>
+      topStoryCardIds.has(result.cardId)
+    );
+    topStories = buildTopStories(
+      topStoryCardResults,
       previousKeys,
       isInitialLoad
     );
@@ -661,7 +671,9 @@ async function refreshDashboard({ isInitialLoad = false } = {}) {
     cardResults.forEach((result) => {
       cardResultsById.set(result.cardId, {
         ...result,
-        items: globalStories.filter((item) => item.category === result.cardId)
+        items: topStoryCardIds.has(result.cardId)
+          ? topStories.filter((item) => item.category === result.cardId)
+          : result.items
       });
     });
 
