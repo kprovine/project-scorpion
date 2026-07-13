@@ -91,9 +91,13 @@ function renderItems(feed, items, createText) {
   feed.replaceChildren(fragment);
 }
 
-function renderCategory(card, items) {
+function renderStoryListCard(card, result) {
   const feed = document.querySelector(`#${card.id} .feed`);
   if (!feed) return;
+
+  const items = [...result.items]
+    .sort(compareStories)
+    .slice(0, card.maxItems);
 
   if (items.length === 0) {
     feed.innerHTML = `
@@ -107,13 +111,34 @@ function renderCategory(card, items) {
   renderItems(feed, items, (item) => item.title);
 }
 
-function renderAllCategories() {
-  cards.forEach((card) => {
-    const items = [...(cardResultsById.get(card.id)?.items || [])]
-      .sort(compareStories)
-      .slice(0, card.maxItems);
+const cardRenderers = {
+  "story-list": renderStoryListCard
+};
 
-    renderCategory(card, items);
+function renderCard(card, result) {
+  const renderer = cardRenderers[card.renderer];
+
+  if (!renderer) {
+    const feed = document.querySelector(`#${card.id} .feed`);
+    if (feed) {
+      feed.innerHTML = `
+        <div style="color:#64748b;padding:10px 0;">
+          Card renderer unavailable
+        </div>
+      `;
+    }
+    console.error(`Unsupported card renderer: ${card.renderer}`);
+    return;
+  }
+
+  renderer(card, result);
+}
+
+function renderAllCards() {
+  cards.forEach((card) => {
+    const result = cardResultsById.get(card.id) || { items: [] };
+
+    renderCard(card, result);
   });
 }
 
@@ -640,7 +665,7 @@ async function refreshDashboard({ isInitialLoad = false } = {}) {
       });
     });
 
-    renderAllCategories();
+    renderAllCards();
     renderGlobalFeed();
     renderRefreshStatuses(cardResults, new Date());
   } catch (error) {
