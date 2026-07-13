@@ -120,11 +120,7 @@ function renderGlobalFeed() {
 
   const topStories = [...globalStories]
     .sort(compareStories)
-    .slice(0, 10)
-    .map((item, index) => ({
-      ...item,
-      isHot: index < 3
-    }));
+    .slice(0, 10);
 
   if (topStories.length === 0) {
     feed.innerHTML = `
@@ -391,6 +387,53 @@ function deduplicateStories(stories) {
   return deduplicated;
 }
 
+function getPercentile(values, percentile) {
+  if (values.length === 0) return 0;
+
+  const sortedValues = [...values].sort((first, second) => first - second);
+  const index = Math.max(
+    0,
+    Math.ceil(percentile * sortedValues.length) - 1
+  );
+
+  return sortedValues[index];
+}
+
+function calculateHotSignalScore(story) {
+  const additionalSourceCount = Math.max(0, (story.sourceCount || 1) - 1);
+  const crossSourceBoost = Math.min(3, additionalSourceCount * 1.5);
+
+  return Number((story.score + crossSourceBoost).toFixed(2));
+}
+
+function applyHotDetection(stories) {
+  if (stories.length === 0) return [];
+
+  const storiesWithSignals = stories.map((story) => ({
+    ...story,
+    hotSignalScore: calculateHotSignalScore(story)
+  }));
+  const hotThreshold = getPercentile(
+    storiesWithSignals.map((story) => story.hotSignalScore),
+    0.8
+  );
+
+  return storiesWithSignals.map((story) => {
+    const hasTimelyOrStrongEvidence = story.recencyBoost >= 1
+      || story.sourceCount >= 2
+      || story.baseScore >= 8;
+    const hasMeaningfulSubstance = story.baseScore >= 3
+      || story.sourceCount >= 2;
+
+    return {
+      ...story,
+      isHot: story.hotSignalScore >= hotThreshold
+        && hasTimelyOrStrongEvidence
+        && hasMeaningfulSubstance
+    };
+  });
+}
+
 function compareStories(firstStory, secondStory) {
   const scoreDifference = secondStory.score - firstStory.score;
   if (scoreDifference !== 0) return scoreDifference;
@@ -512,14 +555,9 @@ async function loadRSSFeed(category, scoringTime) {
   const cleaned = deduplicateStories(allItems)
     .slice(0, 15);
 
-  const hotCutoff = Math.max(1, Math.floor(cleaned.length * 0.3));
-
   return {
     categoryId: category.id,
-    items: cleaned.map((item, index) => ({
-      ...item,
-      isHot: index < hotCutoff
-    })),
+    items: cleaned,
     failedSources,
     staleSources,
     preserved: false
@@ -527,9 +565,11 @@ async function loadRSSFeed(category, scoringTime) {
 }
 
 function mergeStories(categoryResults, previousKeys, isInitialLoad) {
-  return deduplicateStories(
+  const deduplicatedStories = deduplicateStories(
     categoryResults.flatMap((result) => result.items)
-  ).map((item) => {
+  );
+
+  return applyHotDetection(deduplicatedStories).map((item) => {
     const key = normalizeTitle(item.title);
 
     return {
