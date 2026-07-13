@@ -8,10 +8,13 @@ const HEADLINE_STOP_WORDS = new Set([
 let globalStories = [];
 let isRefreshing = false;
 
-const categories = Object.entries(window.SOURCE_REGISTRY).map(([id, data]) => ({
+const cards = Object.entries(window.CARD_REGISTRY).map(([id, data]) => ({
   id,
   title: data.title,
-  sources: data.sources
+  renderer: data.renderer,
+  contributesToTopStories: data.contributesToTopStories,
+  maxItems: data.maxItems,
+  providers: data.providers
 }));
 
 // 1. Dashboard and rendering
@@ -29,12 +32,12 @@ function createDashboard() {
   `;
   dashboard.appendChild(globalCard);
 
-  categories.forEach((category) => {
+  cards.forEach((cardConfig) => {
     const card = document.createElement("div");
     card.className = "card";
-    card.id = category.id;
+    card.id = cardConfig.id;
     card.innerHTML = `
-      <h3>${category.title}</h3>
+      <h3>${cardConfig.title}</h3>
       <div class="feed-status">Loading sources…</div>
       <div class="feed"></div>
     `;
@@ -87,8 +90,8 @@ function renderItems(feed, items, createText) {
   feed.replaceChildren(fragment);
 }
 
-function renderCategory(category, items) {
-  const feed = document.querySelector(`#${category.id} .feed`);
+function renderCategory(card, items) {
+  const feed = document.querySelector(`#${card.id} .feed`);
   if (!feed) return;
 
   if (items.length === 0) {
@@ -104,13 +107,13 @@ function renderCategory(category, items) {
 }
 
 function renderAllCategories() {
-  categories.forEach((category) => {
+  cards.forEach((card) => {
     const items = globalStories
-      .filter((item) => item.category === category.id)
+      .filter((item) => item.category === card.id)
       .sort(compareStories)
-      .slice(0, 15);
+      .slice(0, card.maxItems);
 
-    renderCategory(category, items);
+    renderCategory(card, items);
   });
 }
 
@@ -160,7 +163,7 @@ function renderSkeleton(cardId, itemCount = 6) {
 
 function renderLoadingState() {
   renderSkeleton("global", 8);
-  categories.forEach((category) => renderSkeleton(category.id));
+  cards.forEach((card) => renderSkeleton(card.id));
 }
 
 function formatUpdatedAt(updatedAt) {
@@ -482,18 +485,18 @@ function formatPublishedAt(publishedAt) {
 
 // 3. Feed loading and refresh
 
-async function loadRSSFeed(category, scoringTime) {
+async function loadRSSFeed(card, scoringTime) {
   const allItems = [];
   const failedSources = [];
   const staleSources = [];
 
-  for (const source of category.sources) {
-    const url = `/api/rss?url=${encodeURIComponent(source.rss)}`;
+  for (const provider of card.providers) {
+    const url = `/api/rss?url=${encodeURIComponent(provider.config.url)}`;
 
     try {
       const response = await fetch(url);
       if (!response.ok) {
-        failedSources.push(source.name);
+        failedSources.push(provider.name);
         continue;
       }
 
@@ -501,7 +504,7 @@ async function loadRSSFeed(category, scoringTime) {
       const xmlText = data.xml;
 
       if (!xmlText || typeof xmlText !== "string" || !xmlText.includes("<item")) {
-        failedSources.push(source.name);
+        failedSources.push(provider.name);
         continue;
       }
 
@@ -519,7 +522,7 @@ async function loadRSSFeed(category, scoringTime) {
             publishedAt,
             scoringTime
           );
-          const sourceQualityBoost = getSourceQualityBoost(source);
+          const sourceQualityBoost = getSourceQualityBoost(provider);
 
           return {
             title,
@@ -528,35 +531,35 @@ async function loadRSSFeed(category, scoringTime) {
             recencyBoost,
             sourceQualityBoost,
             score: baseScore + recencyBoost + sourceQualityBoost,
-            category: category.id,
-            sourceId: source.id,
-            sourceName: source.name,
+            category: card.id,
+            sourceId: provider.id,
+            sourceName: provider.name,
             publishedAt
           };
         })
         .filter((item) => item.title && item.link);
 
       if (normalizedItems.length === 0) {
-        failedSources.push(source.name);
+        failedSources.push(provider.name);
         continue;
       }
 
       if (data.stale) {
-        staleSources.push(source.name);
+        staleSources.push(provider.name);
       }
 
       allItems.push(...normalizedItems);
     } catch (error) {
-      failedSources.push(source.name);
-      console.error("Feed failed:", source.rss, error);
+      failedSources.push(provider.name);
+      console.error("Feed failed:", provider.config.url, error);
     }
   }
 
   const cleaned = deduplicateStories(allItems)
-    .slice(0, 15);
+    .slice(0, card.maxItems);
 
   return {
-    categoryId: category.id,
+    categoryId: card.id,
     items: cleaned,
     failedSources,
     staleSources,
@@ -587,16 +590,16 @@ async function refreshDashboard({ isInitialLoad = false } = {}) {
     globalStories.map((item) => normalizeTitle(item.title))
   );
   const previousStoriesByCategory = new Map(
-    categories.map((category) => [
-      category.id,
-      globalStories.filter((item) => item.category === category.id)
+    cards.map((card) => [
+      card.id,
+      globalStories.filter((item) => item.category === card.id)
     ])
   );
 
   try {
     const scoringTime = Date.now();
     const categoryResults = await Promise.all(
-      categories.map((category) => loadRSSFeed(category, scoringTime))
+      cards.map((card) => loadRSSFeed(card, scoringTime))
     );
 
     categoryResults.forEach((result) => {

@@ -1,83 +1,110 @@
-// sources.js
+// Card configuration. The filename stays sources.js during the incremental refactor.
 
-window.SOURCE_REGISTRY = {
+window.CARD_REGISTRY = {
   sports: {
     title: "Sports",
-    type: "feed",
+    renderer: "story-list",
+    contributesToTopStories: true,
     maxItems: 15,
-    hotThreshold: 0.3,
-    sources: [
+    providers: [
       {
         id: "bbc_sport",
+        type: "rss",
         name: "BBC Sport",
         qualityWeight: 1,
-        rss: "https://feeds.bbci.co.uk/sport/rss.xml"
+        config: {
+          url: "https://feeds.bbci.co.uk/sport/rss.xml"
+        }
       },
       {
         id: "espn",
+        type: "rss",
         name: "ESPN",
         qualityWeight: 0.75,
-        rss: "https://www.espn.com/espn/rss/news"
+        config: {
+          url: "https://www.espn.com/espn/rss/news"
+        }
       },
       {
         id: "guardian_sport",
+        type: "rss",
         name: "The Guardian Sport",
         qualityWeight: 1,
-        rss: "https://www.theguardian.com/sport/rss"
+        config: {
+          url: "https://www.theguardian.com/sport/rss"
+        }
       }
     ]
   },
 
   gaming: {
     title: "Gaming",
-    type: "feed",
+    renderer: "story-list",
+    contributesToTopStories: true,
     maxItems: 15,
-    hotThreshold: 0.3,
-    sources: [
+    providers: [
       {
         id: "ars_technica",
+        type: "rss",
         name: "Ars Technica",
         qualityWeight: 1,
-        rss: "https://feeds.arstechnica.com/arstechnica/gaming"
+        config: {
+          url: "https://feeds.arstechnica.com/arstechnica/gaming"
+        }
       },
       {
         id: "ign",
+        type: "rss",
         name: "IGN",
         qualityWeight: 0.5,
-        rss: "https://feeds.feedburner.com/ign/all"
+        config: {
+          url: "https://feeds.feedburner.com/ign/all"
+        }
       },
       {
         id: "pc_gamer",
+        type: "rss",
         name: "PC Gamer",
         qualityWeight: 0.75,
-        rss: "https://www.pcgamer.com/rss/"
+        config: {
+          url: "https://www.pcgamer.com/rss/"
+        }
       }
     ]
   },
 
   markets: {
     title: "Markets",
-    type: "feed",
+    renderer: "story-list",
+    contributesToTopStories: true,
     maxItems: 15,
-    hotThreshold: 0.3,
-    sources: [
+    providers: [
       {
         id: "yahoo_finance",
+        type: "rss",
         name: "Yahoo Finance",
         qualityWeight: 0.5,
-        rss: "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC&region=US&lang=en-US"
+        config: {
+          url: "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC&region=US&lang=en-US"
+        }
       },
       {
         id: "cnbc",
+        type: "rss",
         name: "CNBC",
         qualityWeight: 1,
-        rss: "https://www.cnbc.com/id/100003114/device/rss/rss.html"
+        config: {
+          url: "https://www.cnbc.com/id/100003114/device/rss/rss.html"
+        }
       },
       {
         id: "marketwatch",
+        type: "rss",
         name: "MarketWatch",
         qualityWeight: 1,
-        rss: "https://feeds.content.dowjones.io/public/rss/mw_topstories"
+        config: {
+          url: "https://feeds.content.dowjones.io/public/rss/mw_topstories"
+        }
       }
     ]
   }

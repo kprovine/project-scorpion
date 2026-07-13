@@ -47,6 +47,17 @@ Goal: make Top Stories genuinely useful instead of mechanically ranked.
 - [x] Improve HOT story detection.
 - [x] Verify ranking stability, source balance, deduplication, and HOT behavior.
 
+## Architecture refactor — Generic cards
+
+Goal: make the dashboard orchestrate cards without knowing which providers or data models they use.
+
+- [x] Make cards the top-level configuration.
+- [ ] Add provider dispatch and extract the RSS provider.
+- [ ] Add card loading coordination and card-owned results.
+- [ ] Add renderer dispatch for story-list cards.
+- [ ] Decouple Top Stories from all-card state.
+- [ ] Verify the complete behavior-preserving refactor.
+
 ## Phase 3 — More useful cards
 
 Goal: expand the dashboard with information worth checking daily.
