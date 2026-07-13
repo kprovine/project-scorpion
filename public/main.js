@@ -294,6 +294,13 @@ function calculateRecencyBoost(publishedAt, referenceTime = Date.now()) {
   return Number(boost.toFixed(2));
 }
 
+function getSourceQualityBoost(source) {
+  const weight = Number(source.qualityWeight);
+
+  if (!Number.isFinite(weight)) return 0.5;
+  return Math.min(1, Math.max(0, weight));
+}
+
 function normalizeTitle(title) {
   return title
     .toLowerCase()
@@ -387,13 +394,15 @@ async function loadRSSFeed(category, scoringTime) {
             publishedAt,
             scoringTime
           );
+          const sourceQualityBoost = getSourceQualityBoost(source);
 
           return {
             title,
             link,
             baseScore,
             recencyBoost,
-            score: baseScore + recencyBoost,
+            sourceQualityBoost,
+            score: baseScore + recencyBoost + sourceQualityBoost,
             category: category.id,
             sourceId: source.id,
             sourceName: source.name,
