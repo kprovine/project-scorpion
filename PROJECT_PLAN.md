@@ -45,6 +45,7 @@ Goal: make Top Stories genuinely useful instead of mechanically ranked.
 - [x] Add source-quality weighting.
 - [x] Improve headline deduplication.
 - [x] Improve HOT story detection.
+- [x] Verify ranking stability, source balance, deduplication, and HOT behavior.
 
 ## Phase 3 — More useful cards
 
