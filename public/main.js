@@ -1,4 +1,6 @@
 const REFRESH_INTERVAL = 5 * 60 * 1000;
+const COLLAPSED_STORY_COUNT = 5;
+const COLLECTION_ITEM_LIMIT = 5;
 const HEADLINE_STOP_WORDS = new Set([
   "a", "an", "and", "are", "as", "at", "be", "by", "for", "from",
   "has", "have", "in", "is", "it", "of", "on", "or", "that", "the",
@@ -7,7 +9,11 @@ const HEADLINE_STOP_WORDS = new Set([
 
 let topStories = [];
 const cardResultsById = new Map();
+const expandedCardIds = new Set();
+const expandedCollectionIds = new Set();
 let isRefreshing = false;
+let temporaryCardCount = 0;
+let toastTimeoutId = null;
 
 const cards = Object.entries(window.CARD_REGISTRY).map(([id, data]) => ({
   id,
@@ -23,74 +29,174 @@ const topStoryCardIds = new Set(
     .map((card) => card.id)
 );
 
+const CARD_COLORS = {
+  global: "#b97855",
+  gaming: "#7a6e9b",
+  sports: "#66856c",
+  markets: "#ad8752"
+};
+
+const COLLECTION_COLORS = {
+  favorites: "#c79042",
+  gaming: "#7a6e9b",
+  sports: "#66856c",
+  markets: "#ad8752"
+};
+
+const FAVORITE_SOURCE_IDS = new Set(["ign", "espn", "cnbc"]);
+const FAVORITE_SOURCE_ORDER = ["ign", "espn", "cnbc"];
+const WORKSPACE_CARD_ORDER = ["gaming", "sports", "markets"];
+
 // 1. Dashboard and rendering
 
 function createDashboard() {
-  const dashboard = document.getElementById("dashboard");
+  const topStoriesSlot = document.getElementById("top-stories-slot");
+  const cardGrid = document.getElementById("card-grid");
 
-  const globalCard = document.createElement("div");
-  globalCard.className = "card";
-  globalCard.id = "global";
-  globalCard.innerHTML = `
-    <h3>🔥 Top Stories</h3>
-    <div class="feed-status">Loading sources…</div>
-    <div class="feed"></div>
-  `;
-  dashboard.appendChild(globalCard);
+  topStoriesSlot.appendChild(createStoryCardShell({
+    id: "global",
+    title: "Top Stories",
+    kicker: "Across your Collection",
+    isTopStories: true
+  }));
 
-  cards.forEach((cardConfig) => {
-    const card = document.createElement("div");
-    card.className = "card";
-    card.id = cardConfig.id;
-    card.innerHTML = `
-      <h3>${cardConfig.title}</h3>
-      <div class="feed-status">Loading sources…</div>
-      <div class="feed"></div>
-    `;
-    dashboard.appendChild(card);
+  const workspaceCards = [...cards].sort((first, second) =>
+    WORKSPACE_CARD_ORDER.indexOf(first.id) - WORKSPACE_CARD_ORDER.indexOf(second.id)
+  );
+  workspaceCards.forEach((card) => {
+    cardGrid.appendChild(createStoryCardShell({
+      id: card.id,
+      title: card.title,
+      kicker: `${card.providers.length} sources`
+    }));
   });
+
+  const addCardButton = document.createElement("button");
+  addCardButton.className = "add-card-button";
+  addCardButton.id = "add-card";
+  addCardButton.type = "button";
+  addCardButton.innerHTML = `
+    <span class="add-card-icon" aria-hidden="true">+</span>
+    <strong>Add Card</strong>
+    <small>Make room for something new</small>
+  `;
+  cardGrid.appendChild(addCardButton);
 }
 
-function createItem(text, index, item) {
-  const div = document.createElement("div");
-  div.className = "item";
+function createStoryCardShell({ id, title, kicker, isTopStories = false }) {
+  const card = document.createElement("article");
+  card.className = `workspace-card${isTopStories ? " top-stories-card" : ""}`;
+  card.id = id;
+  card.style.setProperty("--card-color", CARD_COLORS[id] || CARD_COLORS.global);
 
-  const content = item.link
-    ? `<a href="${item.link}" target="_blank" style="color:inherit; text-decoration:none;">${text}</a>`
-    : text;
-  const metadata = `${item.sourceName} • ${formatPublishedAt(item.publishedAt)}`;
-
-  div.innerHTML = `
-    <span class="rank">#${index + 1}</span>
-    ${content}
-    ${item.isHot ? '<span class="hot">HOT</span>' : ""}
-    ${item.isNew ? '<span class="new">NEW</span>' : ""}
-    <div class="timestamp">${metadata}</div>
+  const heading = document.createElement("div");
+  heading.className = "card-heading";
+  heading.innerHTML = `
+    <div class="card-title-group">
+      <span class="card-accent" aria-hidden="true"></span>
+      <div>
+        <h3></h3>
+        <span class="card-kicker"></span>
+      </div>
+    </div>
+    <div class="feed-status">Loading sources…</div>
   `;
+  heading.querySelector("h3").textContent = title;
+  heading.querySelector(".card-kicker").textContent = kicker;
+
+  const feed = document.createElement("div");
+  feed.className = "feed";
+
+  const footer = document.createElement("footer");
+  footer.className = "card-footer";
+  const toggle = document.createElement("button");
+  toggle.className = "card-toggle";
+  toggle.type = "button";
+  toggle.dataset.cardId = id;
+  toggle.setAttribute("aria-expanded", "false");
+  toggle.textContent = "Show More";
+  footer.appendChild(toggle);
+
+  card.append(heading, feed, footer);
+  return card;
+}
+
+function createStoryItem(item, index, { showCategory = false } = {}) {
+  const story = document.createElement("article");
+  story.className = "story-item";
+
+  const rank = document.createElement("span");
+  rank.className = "story-rank";
+  rank.textContent = index + 1;
+
+  const content = document.createElement("div");
+  content.className = "story-content";
+
+  const title = document.createElement(item.link ? "a" : "span");
+  title.className = "story-title";
+  title.textContent = item.title;
+  if (item.link) {
+    title.href = item.link;
+    title.target = "_blank";
+    title.rel = "noopener noreferrer";
+  }
+  content.appendChild(title);
+
+  if (item.isHot) {
+    content.appendChild(createStoryBadge("HOT", "hot"));
+  }
+  if (item.isNew) {
+    content.appendChild(createStoryBadge("NEW", "new"));
+  }
+
+  const metadata = document.createElement("div");
+  metadata.className = "story-metadata";
+  if (showCategory) {
+    const category = document.createElement("span");
+    category.className = "story-category";
+    category.textContent = item.category;
+    metadata.append(category, createMetadataSeparator());
+  }
+
+  const source = document.createElement("span");
+  source.textContent = item.sourceName;
+  const published = document.createElement("span");
+  published.textContent = formatPublishedAt(item.publishedAt);
+  metadata.append(source, createMetadataSeparator(), published);
+  content.appendChild(metadata);
+  story.append(rank, content);
 
   requestAnimationFrame(() => {
-    div.classList.add("show");
+    story.classList.add("show");
 
     if (item.isNew) {
-      div.classList.add("new-flash");
-      setTimeout(() => div.classList.remove("new-flash"), 4000);
+      story.classList.add("new-flash");
+      setTimeout(() => story.classList.remove("new-flash"), 4000);
     }
   });
 
-  return div;
+  return story;
 }
 
-function renderItems(feed, items, createText) {
+function createStoryBadge(text, variant) {
+  const badge = document.createElement("span");
+  badge.className = `story-badge ${variant}`;
+  badge.textContent = text;
+  return badge;
+}
+
+function createMetadataSeparator() {
+  const separator = document.createElement("span");
+  separator.textContent = "•";
+  separator.setAttribute("aria-hidden", "true");
+  return separator;
+}
+
+function renderStoryItems(feed, items, options) {
   const fragment = document.createDocumentFragment();
 
   items.forEach((item, index) => {
-    fragment.appendChild(
-      createItem(
-        createText(item),
-        index,
-        item
-      )
-    );
+    fragment.appendChild(createStoryItem(item, index, options));
   });
 
   feed.replaceChildren(fragment);
@@ -100,20 +206,20 @@ function renderStoryListCard(card, result) {
   const feed = document.querySelector(`#${card.id} .feed`);
   if (!feed) return;
 
+  const isExpanded = expandedCardIds.has(card.id);
+  const visibleCount = isExpanded ? card.maxItems : COLLAPSED_STORY_COUNT;
   const items = [...result.items]
     .sort(compareStories)
-    .slice(0, card.maxItems);
+    .slice(0, visibleCount);
 
   if (items.length === 0) {
-    feed.innerHTML = `
-      <div style="color:#64748b;padding:10px 0;">
-        No stories
-      </div>
-    `;
+    renderEmptyStoryState(feed);
+    updateCardToggle(card.id, 0, card.maxItems);
     return;
   }
 
-  renderItems(feed, items, (item) => item.title);
+  renderStoryItems(feed, items);
+  updateCardToggle(card.id, result.items.length, card.maxItems);
 }
 
 const cardRenderers = {
@@ -151,27 +257,47 @@ function renderGlobalFeed() {
   const feed = document.querySelector("#global .feed");
   if (!feed) return;
 
+  const isExpanded = expandedCardIds.has("global");
+  const visibleCount = isExpanded ? 10 : COLLAPSED_STORY_COUNT;
   const rankedTopStories = [...topStories]
     .sort(compareStories)
-    .slice(0, 10);
+    .slice(0, visibleCount);
 
   if (rankedTopStories.length === 0) {
-    feed.innerHTML = `
-      <div style="color:#64748b;padding:10px 0;">
-        No stories
-      </div>
-    `;
+    renderEmptyStoryState(feed);
+    updateCardToggle("global", 0, 10);
     return;
   }
 
-  renderItems(
-    feed,
-    rankedTopStories,
-    (item) => `[${item.category}] ${item.title}`
-  );
+  renderStoryItems(feed, rankedTopStories, { showCategory: true });
+  updateCardToggle("global", topStories.length, 10);
 }
 
-function renderSkeleton(cardId, itemCount = 6) {
+function renderEmptyStoryState(feed) {
+  const empty = document.createElement("div");
+  empty.className = "card-empty-state";
+  empty.textContent = "No stories are available right now.";
+  feed.replaceChildren(empty);
+}
+
+function updateCardToggle(cardId, itemCount, expandedLimit) {
+  const toggle = document.querySelector(`[data-card-id="${cardId}"]`);
+  if (!toggle) return;
+
+  const hasMore = itemCount > COLLAPSED_STORY_COUNT;
+  const isExpanded = expandedCardIds.has(cardId);
+  toggle.hidden = !hasMore;
+  toggle.setAttribute("aria-expanded", String(isExpanded));
+  toggle.textContent = isExpanded ? "Show Less" : "Show More";
+
+  if (isExpanded && itemCount > expandedLimit) {
+    toggle.title = `Showing the top ${expandedLimit} stories`;
+  } else {
+    toggle.removeAttribute("title");
+  }
+}
+
+function renderSkeleton(cardId, itemCount = COLLAPSED_STORY_COUNT) {
   const feed = document.querySelector(`#${cardId} .feed`);
   if (!feed) return;
 
@@ -179,11 +305,13 @@ function renderSkeleton(cardId, itemCount = 6) {
 
   for (let index = 0; index < itemCount; index += 1) {
     const skeleton = document.createElement("div");
-    skeleton.className = "item skeleton";
+    skeleton.className = "skeleton-story";
     skeleton.innerHTML = `
-      <span class="rank">#</span>
-      <div class="skeleton-line"></div>
-      <div class="skeleton-line short"></div>
+      <span class="skeleton-rank"></span>
+      <div>
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line short"></div>
+      </div>
     `;
     fragment.appendChild(skeleton);
   }
@@ -192,8 +320,254 @@ function renderSkeleton(cardId, itemCount = 6) {
 }
 
 function renderLoadingState() {
-  renderSkeleton("global", 8);
+  renderSkeleton("global");
   cards.forEach((card) => renderSkeleton(card.id));
+}
+
+function toggleStoryCard(cardId) {
+  if (expandedCardIds.has(cardId)) {
+    expandedCardIds.delete(cardId);
+  } else {
+    expandedCardIds.add(cardId);
+  }
+
+  if (cardId === "global") {
+    renderGlobalFeed();
+    return;
+  }
+
+  const card = cards.find((candidate) => candidate.id === cardId);
+  if (!card) return;
+  renderCard(card, cardResultsById.get(cardId) || { items: [] });
+}
+
+function createCollection() {
+  const collectionSections = document.getElementById("collection-sections");
+  const favoriteProviders = cards
+    .flatMap((card) => card.providers)
+    .filter((provider) => FAVORITE_SOURCE_IDS.has(provider.id))
+    .sort((first, second) =>
+      FAVORITE_SOURCE_ORDER.indexOf(first.id)
+      - FAVORITE_SOURCE_ORDER.indexOf(second.id)
+    );
+  const sections = [
+    { id: "favorites", title: "Favorites", providers: favoriteProviders },
+    ...["gaming", "sports", "markets"]
+      .map((id) => cards.find((card) => card.id === id))
+      .filter(Boolean)
+      .map((card) => ({
+        id: card.id,
+        title: card.title,
+        providers: card.providers
+      }))
+  ];
+
+  sections.forEach((section) => {
+    collectionSections.appendChild(createCollectionSection(section));
+  });
+}
+
+function createCollectionSection(section) {
+  const container = document.createElement("section");
+  container.className = "collection-section";
+  container.dataset.collectionSection = section.id;
+  container.dataset.sourceNames = section.providers
+    .map((provider) => provider.name.toLowerCase())
+    .join(" ");
+
+  const heading = document.createElement("h2");
+  heading.className = "collection-section-heading";
+  heading.innerHTML = `<span class="collection-dot" aria-hidden="true"></span>`;
+  heading.style.setProperty("--section-color", COLLECTION_COLORS[section.id]);
+  heading.appendChild(document.createTextNode(section.title));
+
+  const list = document.createElement("ul");
+  list.className = "collection-list";
+  section.providers.forEach((provider, index) => {
+    list.appendChild(createCollectionItem(provider, section.id, index));
+  });
+
+  container.append(heading, list);
+
+  if (section.providers.length > COLLECTION_ITEM_LIMIT) {
+    const toggle = document.createElement("button");
+    toggle.className = "collection-more";
+    toggle.type = "button";
+    toggle.dataset.collectionToggle = section.id;
+    toggle.textContent = "Show More";
+    toggle.setAttribute("aria-expanded", "false");
+    container.appendChild(toggle);
+  }
+
+  return container;
+}
+
+function createCollectionItem(provider, sectionId, index) {
+  const item = document.createElement("li");
+  item.className = "collection-item";
+  item.dataset.sourceName = provider.name.toLowerCase();
+  item.dataset.collectionIndex = index;
+  item.hidden = index >= COLLECTION_ITEM_LIMIT;
+
+  const avatar = document.createElement("span");
+  avatar.className = "source-avatar";
+  avatar.textContent = getSourceInitials(provider.name);
+  avatar.style.setProperty(
+    "--avatar-color",
+    `color-mix(in srgb, ${COLLECTION_COLORS[sectionId]} 18%, white)`
+  );
+  avatar.style.setProperty("--avatar-ink", COLLECTION_COLORS[sectionId]);
+
+  const name = document.createElement("span");
+  name.textContent = provider.name;
+  item.append(avatar, name);
+
+  if (sectionId === "favorites") {
+    const star = document.createElement("span");
+    star.className = "favorite-star";
+    star.textContent = "★";
+    star.setAttribute("aria-label", "Favorite");
+    item.appendChild(star);
+  }
+
+  return item;
+}
+
+function getSourceInitials(name) {
+  const words = name.split(/\s+/).filter(Boolean);
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return words.slice(0, 2).map((word) => word[0]).join("").toUpperCase();
+}
+
+function filterCollection(query) {
+  const normalizedQuery = query.trim().toLowerCase();
+  const sections = document.querySelectorAll("[data-collection-section]");
+  let visibleSectionCount = 0;
+
+  sections.forEach((section) => {
+    let visibleItemCount = 0;
+    const sectionId = section.dataset.collectionSection;
+    const isExpanded = expandedCollectionIds.has(sectionId);
+
+    section.querySelectorAll(".collection-item").forEach((item) => {
+      const matchesSearch = !normalizedQuery
+        || item.dataset.sourceName.includes(normalizedQuery);
+      const isWithinLimit = Number(item.dataset.collectionIndex) < COLLECTION_ITEM_LIMIT;
+      const shouldShow = matchesSearch
+        && (normalizedQuery || isExpanded || isWithinLimit);
+      item.hidden = !shouldShow;
+      if (shouldShow) visibleItemCount += 1;
+    });
+
+    section.hidden = visibleItemCount === 0;
+    if (visibleItemCount > 0) visibleSectionCount += 1;
+
+    const toggle = section.querySelector(".collection-more");
+    if (toggle) {
+      toggle.hidden = Boolean(normalizedQuery);
+      toggle.textContent = isExpanded ? "Show Less" : "Show More";
+      toggle.setAttribute("aria-expanded", String(isExpanded));
+    }
+  });
+
+  document.getElementById("collection-empty").hidden = visibleSectionCount > 0;
+}
+
+function toggleCollectionSection(sectionId) {
+  if (expandedCollectionIds.has(sectionId)) {
+    expandedCollectionIds.delete(sectionId);
+  } else {
+    expandedCollectionIds.add(sectionId);
+  }
+  filterCollection(document.getElementById("collection-search").value);
+}
+
+function openSourceDialog() {
+  const dialog = document.getElementById("source-dialog");
+  if (!dialog.open) dialog.showModal();
+}
+
+function createTemporaryCard() {
+  temporaryCardCount += 1;
+  const cardGrid = document.getElementById("card-grid");
+  const addCardButton = document.getElementById("add-card");
+  const card = document.createElement("article");
+  const cardId = `temporary-card-${temporaryCardCount}`;
+  card.className = "workspace-card temporary-card just-added";
+  card.id = cardId;
+  card.innerHTML = `
+    <div class="card-heading">
+      <div class="card-title-group">
+        <span class="card-accent" aria-hidden="true"></span>
+        <div>
+          <h3>New Card</h3>
+          <span class="card-kicker">Ready for you</span>
+        </div>
+      </div>
+      <span class="temporary-label">Temporary</span>
+    </div>
+    <div class="temporary-empty">
+      <span aria-hidden="true">+</span>
+      Sources and customization are coming in the next phase.
+    </div>
+    <footer class="card-footer">
+      <button class="temporary-remove" type="button" data-remove-card="${cardId}">
+        Remove Card
+      </button>
+    </footer>
+  `;
+
+  cardGrid.insertBefore(card, addCardButton);
+  showToast("New Card added. It will reset when you refresh.");
+  setTimeout(() => card.classList.remove("just-added"), 700);
+}
+
+function removeTemporaryCard(cardId) {
+  const card = document.getElementById(cardId);
+  if (!card) return;
+  card.remove();
+  showToast("Temporary card removed.");
+}
+
+function showToast(message) {
+  const toast = document.getElementById("toast");
+  window.clearTimeout(toastTimeoutId);
+  toast.textContent = message;
+  toast.classList.add("show");
+  toastTimeoutId = window.setTimeout(() => toast.classList.remove("show"), 3200);
+}
+
+function bindInterfaceEvents() {
+  document.getElementById("open-source-dialog")
+    .addEventListener("click", openSourceDialog);
+  document.getElementById("collection-add")
+    .addEventListener("click", openSourceDialog);
+  document.getElementById("collection-search").addEventListener("input", (event) => {
+    filterCollection(event.target.value);
+  });
+  document.getElementById("collection-sections").addEventListener("click", (event) => {
+    const toggle = event.target.closest("[data-collection-toggle]");
+    if (toggle) toggleCollectionSection(toggle.dataset.collectionToggle);
+  });
+  document.getElementById("top-stories-slot").addEventListener("click", (event) => {
+    const toggle = event.target.closest("[data-card-id]");
+    if (toggle) toggleStoryCard(toggle.dataset.cardId);
+  });
+  document.getElementById("card-grid").addEventListener("click", (event) => {
+    const storyToggle = event.target.closest("[data-card-id]");
+    if (storyToggle) {
+      toggleStoryCard(storyToggle.dataset.cardId);
+      return;
+    }
+
+    if (event.target.closest("#add-card")) {
+      createTemporaryCard();
+      return;
+    }
+
+    const removeButton = event.target.closest("[data-remove-card]");
+    if (removeButton) removeTemporaryCard(removeButton.dataset.removeCard);
+  });
 }
 
 function formatUpdatedAt(updatedAt) {
@@ -691,6 +1065,8 @@ async function refreshDashboard({ isInitialLoad = false } = {}) {
 
 document.addEventListener("DOMContentLoaded", async () => {
   createDashboard();
+  createCollection();
+  bindInterfaceEvents();
   renderLoadingState();
 
   await refreshDashboard({ isInitialLoad: true });

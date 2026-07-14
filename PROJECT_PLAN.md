@@ -58,11 +58,16 @@ Goal: make the dashboard orchestrate cards without knowing which providers or da
 - [x] Decouple Top Stories from all-card state.
 - [x] Verify the complete behavior-preserving refactor.
 
-## Phase 3 — More useful cards
+## Phase 3 — A home on the internet
 
-Goal: expand the dashboard with information worth checking daily.
+Goal: replace the prototype presentation with the first warm, calm, and welcoming version of the Scorpion experience.
 
-Possible cards include AI, technology, world news, weather, Reddit, GitHub, calendar, and personal notes. Specific cards will be chosen based on daily usefulness.
+- [x] Establish the Collection and Workspace layout.
+- [x] Create a compact, expandable card experience.
+- [x] Add Collection search and source organization.
+- [x] Add an honest source-discovery preview.
+- [x] Add temporary in-memory card creation and removal.
+- [x] Verify the complete desktop redesign and existing data behavior.
 
 ## Phase 4 — Customization
 
@@ -81,4 +86,4 @@ Potential integrations include calendar, GitHub, Reddit, notes, and notification
 
 ## Current focus
 
-Begin Phase 1 with the reliable feed work.
+Verify the Phase 3 homepage redesign without changing the provider architecture.
