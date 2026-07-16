@@ -1,24 +1,24 @@
 :root {
   color-scheme: light;
-  --canvas: #f6f1e8;
-  --canvas-deep: #eee6d9;
-  --surface: rgba(255, 253, 249, 0.94);
-  --surface-strong: #fffdf9;
-  --surface-soft: #f2ecdf;
-  --ink: #292b28;
-  --ink-soft: #696b63;
-  --ink-faint: #8c8d84;
-  --line: rgba(62, 66, 57, 0.11);
-  --sage: #657963;
-  --sage-deep: #4f6450;
-  --sage-soft: #e1e8dc;
-  --peach: #e9b38f;
-  --peach-soft: #f8e5d6;
-  --gold-soft: #f4e8c8;
-  --error: #a84f47;
-  --warning: #9b6a2f;
-  --shadow-sm: 0 8px 24px rgba(74, 64, 49, 0.07);
-  --shadow-md: 0 18px 48px rgba(74, 64, 49, 0.1);
+  --canvas: #edf5fb;
+  --canvas-deep: #dceaf5;
+  --surface: rgba(255, 255, 255, 0.94);
+  --surface-strong: #ffffff;
+  --surface-soft: #eaf3fa;
+  --ink: #18324a;
+  --ink-soft: #587188;
+  --ink-faint: #7d94a8;
+  --line: rgba(38, 86, 121, 0.12);
+  --sage: #3478a8;
+  --sage-deep: #245f8d;
+  --sage-soft: #dceef9;
+  --peach: #f28b3c;
+  --peach-soft: #ffead8;
+  --gold-soft: #fff0c9;
+  --error: #b84d47;
+  --warning: #a66522;
+  --shadow-sm: 0 10px 28px rgba(44, 84, 113, 0.09);
+  --shadow-md: 0 20px 52px rgba(35, 75, 105, 0.14);
   --radius-lg: 24px;
   --radius-md: 18px;
   --header-height: 76px;
@@ -39,7 +39,7 @@ body {
   overflow: hidden;
   background: var(--canvas);
   color: var(--ink);
-  font-family: "DM Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Nunito Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -56,7 +56,7 @@ a {
 button:focus-visible,
 a:focus-visible,
 input:focus-visible {
-  outline: 3px solid rgba(101, 121, 99, 0.3);
+  outline: 3px solid rgba(52, 120, 168, 0.3);
   outline-offset: 3px;
 }
 
@@ -67,7 +67,7 @@ input:focus-visible {
 
 .app-header {
   align-items: center;
-  background: rgba(250, 247, 240, 0.88);
+  background: rgba(248, 252, 255, 0.9);
   border-bottom: 1px solid var(--line);
   display: flex;
   height: var(--header-height);
@@ -88,9 +88,9 @@ input:focus-visible {
 
 .brand-mark {
   align-items: center;
-  background: var(--sage);
-  border-radius: 14px;
-  box-shadow: 0 8px 18px rgba(79, 100, 80, 0.2);
+  background: var(--peach);
+  border-radius: 15px;
+  box-shadow: 0 9px 20px rgba(220, 102, 28, 0.24);
   display: inline-flex;
   height: 42px;
   justify-content: center;
@@ -113,9 +113,9 @@ input:focus-visible {
 }
 
 .brand-name {
-  font-family: "Newsreader", Georgia, serif;
-  font-size: 23px;
-  font-weight: 600;
+  font-family: "Bricolage Grotesque", system-ui, sans-serif;
+  font-size: 22px;
+  font-weight: 700;
   line-height: 1;
 }
 
@@ -139,8 +139,8 @@ input:focus-visible {
 }
 
 .primary-button {
-  background: var(--sage);
-  box-shadow: 0 8px 20px rgba(79, 100, 80, 0.17);
+  background: var(--peach);
+  box-shadow: 0 8px 20px rgba(220, 102, 28, 0.2);
   color: white;
   min-height: 42px;
   padding: 0 19px;
@@ -153,8 +153,8 @@ input:focus-visible {
 }
 
 .primary-button:hover {
-  background: var(--sage-deep);
-  box-shadow: 0 10px 24px rgba(79, 100, 80, 0.22);
+  background: #dc681e;
+  box-shadow: 0 10px 24px rgba(220, 102, 28, 0.26);
   transform: translateY(-1px);
 }
 
@@ -172,29 +172,29 @@ input:focus-visible {
 }
 
 .collection {
-  background: rgba(250, 247, 240, 0.72);
+  background: rgba(226, 240, 250, 0.72);
   border-right: 1px solid var(--line);
   overflow-y: auto;
   padding: 31px 24px 28px;
-  scrollbar-color: rgba(101, 121, 99, 0.24) transparent;
+  scrollbar-color: rgba(52, 120, 168, 0.24) transparent;
   scrollbar-width: thin;
 }
 
 .collection-heading h1,
 .workspace-heading h2,
 .source-dialog h2 {
-  font-family: "Newsreader", Georgia, serif;
-  font-weight: 600;
+  font-family: "Bricolage Grotesque", system-ui, sans-serif;
+  font-weight: 700;
 }
 
 .collection-heading h1 {
-  font-size: 31px;
+  font-size: 30px;
   line-height: 1;
   margin: 3px 0 8px;
 }
 
 .eyebrow {
-  color: var(--sage);
+  color: var(--peach);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -212,7 +212,7 @@ input:focus-visible {
 
 .collection-search {
   align-items: center;
-  background: rgba(255, 253, 249, 0.78);
+  background: rgba(255, 255, 255, 0.78);
   border: 1px solid var(--line);
   border-radius: 14px;
   display: flex;
@@ -225,8 +225,8 @@ input:focus-visible {
 
 .collection-search:focus-within {
   background: var(--surface-strong);
-  border-color: rgba(101, 121, 99, 0.35);
-  box-shadow: 0 0 0 4px rgba(101, 121, 99, 0.08);
+  border-color: rgba(52, 120, 168, 0.38);
+  box-shadow: 0 0 0 4px rgba(52, 120, 168, 0.09);
 }
 
 .collection-search svg {
@@ -299,7 +299,7 @@ input:focus-visible {
 }
 
 .collection-item:hover {
-  background: rgba(255, 253, 249, 0.78);
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .source-avatar {
@@ -318,7 +318,7 @@ input:focus-visible {
 }
 
 .favorite-star {
-  color: #c79042;
+  color: var(--peach);
   font-size: 12px;
   margin-left: auto;
 }
@@ -344,7 +344,7 @@ input:focus-visible {
 .collection-add {
   align-items: center;
   background: transparent;
-  border: 1px dashed rgba(101, 121, 99, 0.3);
+  border: 1px dashed rgba(52, 120, 168, 0.32);
   border-radius: 15px;
   color: var(--ink);
   cursor: pointer;
@@ -357,8 +357,8 @@ input:focus-visible {
 }
 
 .collection-add:hover {
-  background: rgba(255, 253, 249, 0.65);
-  border-color: rgba(101, 121, 99, 0.55);
+  background: rgba(255, 255, 255, 0.65);
+  border-color: rgba(52, 120, 168, 0.58);
 }
 
 .collection-add-icon {
@@ -397,7 +397,7 @@ input:focus-visible {
 }
 
 .workspace::before {
-  background: radial-gradient(circle, rgba(233, 179, 143, 0.18), transparent 68%);
+  background: radial-gradient(circle, rgba(242, 139, 60, 0.24), transparent 68%);
   content: "";
   height: 420px;
   pointer-events: none;
@@ -411,7 +411,10 @@ input:focus-visible {
   height: 100%;
   overflow-y: auto;
   padding: 38px clamp(28px, 4vw, 64px) 70px;
-  scrollbar-color: rgba(101, 121, 99, 0.24) transparent;
+  background:
+    radial-gradient(circle at 92% 8%, rgba(255, 190, 102, 0.12), transparent 24%),
+    linear-gradient(145deg, #edf5fb 0%, #f5f9fc 54%, #e8f3fb 100%);
+  scrollbar-color: rgba(52, 120, 168, 0.24) transparent;
   scrollbar-width: thin;
 }
 
@@ -426,6 +429,7 @@ input:focus-visible {
 }
 
 .workspace-heading h2 {
+  color: #173d5c;
   font-size: clamp(31px, 3vw, 45px);
   line-height: 1.05;
   margin: 5px 0 0;
@@ -456,7 +460,7 @@ input:focus-visible {
 
 .workspace-card {
   background: var(--surface);
-  border: 1px solid rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.86);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   display: flex;
@@ -475,7 +479,7 @@ input:focus-visible {
 
 .top-stories-card {
   background:
-    linear-gradient(115deg, rgba(255, 253, 249, 0.98), rgba(246, 239, 225, 0.95));
+    linear-gradient(115deg, rgba(255, 255, 255, 0.99), rgba(255, 244, 234, 0.96));
   min-height: 0;
   padding: 22px 24px 15px;
 }
@@ -505,7 +509,7 @@ input:focus-visible {
 }
 
 .card-heading h3 {
-  font-family: "Newsreader", Georgia, serif;
+  font-family: "Bricolage Grotesque", system-ui, sans-serif;
   font-size: 21px;
   font-weight: 600;
   line-height: 1.1;
@@ -613,7 +617,7 @@ input:focus-visible {
 .story-title:hover {
   color: var(--sage-deep);
   text-decoration: underline;
-  text-decoration-color: rgba(79, 100, 80, 0.35);
+  text-decoration-color: rgba(36, 95, 141, 0.35);
   text-underline-offset: 3px;
 }
 
@@ -646,7 +650,7 @@ input:focus-visible {
 
 .story-badge.hot {
   background: var(--peach-soft);
-  color: #a45432;
+  color: #b55218;
 }
 
 .story-badge.new {
@@ -655,9 +659,9 @@ input:focus-visible {
 }
 
 .story-item.new-flash {
-  background: rgba(225, 232, 220, 0.43);
+  background: rgba(220, 238, 249, 0.58);
   border-radius: 10px;
-  box-shadow: 0 0 0 7px rgba(225, 232, 220, 0.43);
+  box-shadow: 0 0 0 7px rgba(220, 238, 249, 0.58);
 }
 
 .card-empty-state {
@@ -714,7 +718,7 @@ input:focus-visible {
 .skeleton-rank,
 .skeleton-line {
   animation: shimmer 1.5s ease-in-out infinite;
-  background: linear-gradient(90deg, #eee8dc, #f8f4ec, #eee8dc);
+  background: linear-gradient(90deg, #e2edf5, #f4f9fc, #e2edf5);
   background-size: 200% 100%;
 }
 
@@ -743,8 +747,8 @@ input:focus-visible {
 
 .add-card-button {
   align-items: center;
-  background: rgba(255, 253, 249, 0.45);
-  border: 1px dashed rgba(101, 121, 99, 0.35);
+  background: rgba(255, 255, 255, 0.44);
+  border: 1px dashed rgba(52, 120, 168, 0.36);
   border-radius: var(--radius-lg);
   color: var(--sage-deep);
   cursor: pointer;
@@ -758,8 +762,8 @@ input:focus-visible {
 }
 
 .add-card-button:hover {
-  background: rgba(255, 253, 249, 0.75);
-  border-color: rgba(101, 121, 99, 0.62);
+  background: rgba(255, 255, 255, 0.78);
+  border-color: rgba(52, 120, 168, 0.64);
   transform: translateY(-1px);
 }
 
@@ -777,7 +781,7 @@ input:focus-visible {
 
 .add-card-button strong {
   color: var(--ink);
-  font-family: "Newsreader", Georgia, serif;
+  font-family: "Bricolage Grotesque", system-ui, sans-serif;
   font-size: 18px;
   font-weight: 600;
 }
@@ -847,7 +851,7 @@ input:focus-visible {
 
 @keyframes cardArrival {
   0% {
-    box-shadow: 0 0 0 8px rgba(101, 121, 99, 0.18);
+    box-shadow: 0 0 0 8px rgba(52, 120, 168, 0.18);
     opacity: 0;
     transform: translateY(8px);
   }
@@ -862,7 +866,7 @@ input:focus-visible {
   background: var(--surface-strong);
   border: 0;
   border-radius: 26px;
-  box-shadow: 0 28px 90px rgba(54, 49, 40, 0.24);
+  box-shadow: 0 28px 90px rgba(25, 61, 88, 0.24);
   color: var(--ink);
   max-width: 440px;
   padding: 0;
@@ -870,7 +874,7 @@ input:focus-visible {
 }
 
 .source-dialog::backdrop {
-  background: rgba(50, 49, 43, 0.32);
+  background: rgba(20, 48, 70, 0.34);
   backdrop-filter: blur(6px);
 }
 
@@ -942,7 +946,7 @@ input:focus-visible {
 }
 
 .dialog-preview-button {
-  background: rgba(101, 121, 99, 0.14);
+  background: rgba(52, 120, 168, 0.14);
   border-radius: 9px;
   color: var(--sage-deep);
   font-weight: 700;
@@ -954,7 +958,7 @@ input:focus-visible {
 }
 
 .toast {
-  background: #3c493d;
+  background: #245f8d;
   border-radius: 999px;
   bottom: 26px;
   box-shadow: var(--shadow-md);

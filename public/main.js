@@ -30,17 +30,17 @@ const topStoryCardIds = new Set(
 );
 
 const CARD_COLORS = {
-  global: "#b97855",
-  gaming: "#7a6e9b",
-  sports: "#66856c",
-  markets: "#ad8752"
+  global: "#f07a2b",
+  gaming: "#4f7fbd",
+  sports: "#388b87",
+  markets: "#e6a13c"
 };
 
 const COLLECTION_COLORS = {
-  favorites: "#c79042",
-  gaming: "#7a6e9b",
-  sports: "#66856c",
-  markets: "#ad8752"
+  favorites: "#f07a2b",
+  gaming: "#4f7fbd",
+  sports: "#388b87",
+  markets: "#e6a13c"
 };
 
 const FAVORITE_SOURCE_IDS = new Set(["ign", "espn", "cnbc"]);
